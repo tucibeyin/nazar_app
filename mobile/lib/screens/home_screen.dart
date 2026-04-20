@@ -138,12 +138,14 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return const Center(child: CircularProgressIndicator(color: _green));
     }
+    final ratio = _cameraController!.value.aspectRatio;
+    final portraitRatio = ratio < 1 ? ratio : 1 / ratio;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: AspectRatio(
-          aspectRatio: _cameraController!.value.aspectRatio,
+          aspectRatio: portraitRatio,
           child: CameraPreview(_cameraController!),
         ),
       ),
