@@ -39,12 +39,12 @@ def build():
             ayet_no = ar_ayet["numberInSurah"]
             ayetler.append({
                 "id":        idx,
-                "sure_isim": f"{sure_isim} Suresi, {ayet_no}. Ayet",
+                "sure_isim": f"{sure_isim} {ayet_no}",
                 "sure_no":   sure_no,
                 "ayet_no":   ayet_no,
                 "arapca":    ar_ayet["text"],
                 "meal":      tr_ayet["text"],
-                "mp3_url":   f"/media/quran_audio/{sure_no:03d}{ayet_no:03d}.mp3",
+                "mp3_url":   f"/media/quran_audio/{str(sure_no).zfill(3)}{str(ayet_no).zfill(3)}.mp3",
             })
             idx += 1
 
