@@ -55,8 +55,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _switchCamera() async {
-    if (widget.cameras.length < 2) return;
-    _cameraIndex = (_cameraIndex + 1) % widget.cameras.length;
+    final current = widget.cameras[_cameraIndex].lensDirection;
+    final target = current == CameraLensDirection.front
+        ? CameraLensDirection.back
+        : CameraLensDirection.front;
+    final idx = widget.cameras.indexWhere((c) => c.lensDirection == target);
+    if (idx == -1) return;
+    _cameraIndex = idx;
     await _initCamera(_cameraIndex);
   }
 
