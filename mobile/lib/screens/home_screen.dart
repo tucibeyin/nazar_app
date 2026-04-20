@@ -62,6 +62,33 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _exitApp() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Çıkış', style: TextStyle(color: _green, fontWeight: FontWeight.w600)),
+        content: const Text('Uygulamadan çıkmak istiyor musunuz?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Hayır', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _green,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Evet'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
     await _audioPlayer.stop();
     await _cameraController?.dispose();
     if (Platform.isIOS) {
