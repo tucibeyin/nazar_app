@@ -105,13 +105,15 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: _bg,
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(flex: 3, child: _buildCameraPreview()),
-            _buildButton(),
-            if (_ayet != null) Expanded(flex: 2, child: _buildResultPanel()),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildHeader(),
+              _buildCameraPreview(),
+              _buildButton(),
+              if (_ayet != null) _buildResultPanel(),
+            ],
+          ),
         ),
       ),
     );
@@ -140,7 +142,10 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: CameraPreview(_cameraController!),
+        child: AspectRatio(
+          aspectRatio: _cameraController!.value.aspectRatio,
+          child: CameraPreview(_cameraController!),
+        ),
       ),
     );
   }
