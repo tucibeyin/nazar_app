@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:camera/camera.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
@@ -24,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Ayet? _ayet;
   bool _isLoading = false;
   bool _isPlaying = false;
+  int _cameraIndex = 0;
 
   static const _green = Color(0xFF1B4B3E);
   static const _bg = Color(0xFFF5F0E8);
@@ -31,22 +34,41 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _initCamera();
+    _cameraIndex = widget.cameras.indexWhere(
+      (c) => c.lensDirection == CameraLensDirection.front,
+    );
+    if (_cameraIndex == -1) _cameraIndex = 0;
+    _initCamera(_cameraIndex);
     _audioPlayer.onPlayerStateChanged.listen((state) {
-      if (mounted) {
-        setState(() => _isPlaying = state == PlayerState.playing);
-      }
+      if (mounted) setState(() => _isPlaying = state == PlayerState.playing);
     });
   }
 
-  Future<void> _initCamera() async {
-    final front = widget.cameras.firstWhere(
-      (c) => c.lensDirection == CameraLensDirection.front,
-      orElse: () => widget.cameras.first,
+  Future<void> _initCamera(int index) async {
+    await _cameraController?.dispose();
+    _cameraController = CameraController(
+      widget.cameras[index],
+      ResolutionPreset.medium,
+      enableAudio: false,
     );
-    _cameraController = CameraController(front, ResolutionPreset.medium, enableAudio: false);
     await _cameraController!.initialize();
     if (mounted) setState(() {});
+  }
+
+  Future<void> _switchCamera() async {
+    if (widget.cameras.length < 2) return;
+    _cameraIndex = (_cameraIndex + 1) % widget.cameras.length;
+    await _initCamera(_cameraIndex);
+  }
+
+  Future<void> _exitApp() async {
+    await _audioPlayer.stop();
+    await _cameraController?.dispose();
+    if (Platform.isIOS) {
+      SystemNavigator.pop();
+    } else {
+      exit(0);
+    }
   }
 
   Future<void> _analyze() async {
@@ -120,16 +142,33 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader() {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: Text(
-        'Nazar & Ferahlama',
-        style: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
-          color: _green,
-          letterSpacing: 0.5,
-        ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: _switchCamera,
+            icon: const Icon(Icons.flip_camera_ios_rounded, color: _green, size: 26),
+            tooltip: 'Kamera Değiştir',
+          ),
+          const Expanded(
+            child: Text(
+              'Nazar & Ferahlama',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: _green,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: _exitApp,
+            icon: const Icon(Icons.close_rounded, color: _green, size: 26),
+            tooltip: 'Çıkış',
+          ),
+        ],
       ),
     );
   }
