@@ -6,7 +6,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:camera/camera.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
@@ -91,11 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     await _audioPlayer.stop();
     await _cameraController?.dispose();
-    if (Platform.isIOS) {
-      SystemNavigator.pop();
-    } else {
-      exit(0);
-    }
+    exit(0);
   }
 
   Future<void> _analyze() async {
