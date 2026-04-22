@@ -258,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               _buildHeader(),
               _buildMainFrame(),
               _buildButton(),
-              if (_ayet != null && _viewState == _ViewState.playing)
+              if (_ayet != null)
                 _buildResultPanel(),
             ],
           ),
