@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _isPlaying = false;
   int _cameraIndex = 0;
   _ViewState _viewState = _ViewState.camera;
+  Uint8List? _capturedPhotoBytes;
 
   late final AnimationController _shutterCtrl;
   late final AnimationController _mysticCtrl;
@@ -74,7 +75,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _transitionToCamera() async {
     _waveCtrl.stop();
-    if (mounted) setState(() => _viewState = _ViewState.camera);
+    if (mounted) {
+      setState(() {
+        _viewState = _ViewState.camera;
+        _capturedPhotoBytes = null;
+      });
+    }
   }
 
   Future<void> _shutterFlash() async {
@@ -142,6 +148,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() {
       _isLoading = true;
       _ayet = null;
+      _capturedPhotoBytes = null;
     });
 
     try {
@@ -153,6 +160,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       final photo = await photoFuture;
       final bytes = await photo.readAsBytes();
+      if (mounted) setState(() => _capturedPhotoBytes = bytes);
       final digest = sha256.convert(bytes);
       final first8 = Uint8List.fromList(digest.bytes.sublist(0, 8));
       final hashInt =
@@ -350,13 +358,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         return CameraPreview(_cameraController!);
 
       case _ViewState.analyzing:
-        return Container(
-          color: _darkBg,
-          child: AnimatedBuilder(
-            animation: _mysticCtrl,
-            builder: (_, __) =>
-                CustomPaint(painter: _MysticPainter(_mysticCtrl.value)),
-          ),
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            // Katman 1: Bulanık fotoğraf arka planı
+            if (_capturedPhotoBytes != null)
+              ImageFiltered(
+                imageFilter: ui.ImageFilter.blur(
+                    sigmaX: 4.5, sigmaY: 4.5, tileMode: TileMode.decal),
+                child: Image.memory(_capturedPhotoBytes!, fit: BoxFit.cover),
+              )
+            else
+              Container(color: _darkBg),
+            // Katman 2: Koyu örtü
+            Container(color: _darkBg.withValues(alpha: 0.68)),
+            // Katman 3: Mistik geometri
+            AnimatedBuilder(
+              animation: _mysticCtrl,
+              builder: (_, __) =>
+                  CustomPaint(painter: _MysticPainter(_mysticCtrl.value)),
+            ),
+            // Katman 4: Tarama çizgisi + köşe braketleri
+            AnimatedBuilder(
+              animation: _mysticCtrl,
+              builder: (_, __) =>
+                  CustomPaint(painter: _ScanOverlayPainter(_mysticCtrl.value)),
+            ),
+          ],
         );
 
       case _ViewState.playing:
@@ -723,4 +751,71 @@ class _WavePainter extends CustomPainter {
   @override
   bool shouldRepaint(_WavePainter old) =>
       old.t != t || old.isPlaying != isPlaying || old.entrance != entrance;
+}
+
+// ─── Tarama Katmanı ──────────────────────────────────────────────────────────
+
+class _ScanOverlayPainter extends CustomPainter {
+  final double t;
+  _ScanOverlayPainter(this.t);
+
+  static const _teal = Color(0xFF3DB88A);
+  static const _gold = Color(0xFFC9A84C);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    _drawScanLine(canvas, size);
+    _drawCornerBrackets(canvas, size);
+  }
+
+  void _drawScanLine(Canvas canvas, Size size) {
+    final progress = (t * 2.2) % 1.0;
+    final scanY = progress * size.height;
+    final fade = sin(progress * pi).clamp(0.0, 1.0);
+
+    // Glow
+    canvas.drawRect(
+      Rect.fromCenter(
+          center: Offset(size.width / 2, scanY),
+          width: size.width,
+          height: 28),
+      Paint()
+        ..color = _teal.withValues(alpha: fade * 0.16)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+    );
+
+    // Çizgi
+    canvas.drawLine(
+      Offset(0, scanY),
+      Offset(size.width, scanY),
+      Paint()
+        ..color = _teal.withValues(alpha: fade * 0.72)
+        ..strokeWidth = 1.4,
+    );
+  }
+
+  void _drawCornerBrackets(Canvas canvas, Size size) {
+    final bp = Paint()
+      ..color = _gold.withValues(alpha: 0.68)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+
+    final m = size.width * 0.10;
+    final l = size.width * 0.07;
+
+    final corners = [
+      (Offset(m, m), 1.0, 1.0),
+      (Offset(size.width - m, m), -1.0, 1.0),
+      (Offset(m, size.height - m), 1.0, -1.0),
+      (Offset(size.width - m, size.height - m), -1.0, -1.0),
+    ];
+
+    for (final (c, xd, yd) in corners) {
+      canvas.drawLine(c, Offset(c.dx + l * xd, c.dy), bp);
+      canvas.drawLine(c, Offset(c.dx, c.dy + l * yd), bp);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ScanOverlayPainter old) => old.t != t;
 }
