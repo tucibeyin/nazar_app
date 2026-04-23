@@ -37,10 +37,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late final AnimationController _mysticCtrl;
   late final AnimationController _waveCtrl;
   late final AnimationController _waveEnterCtrl;
+  late final AnimationController _ambientCtrl; // arka plan hafif nefes animasyonu
   late final Animation<double> _shutterA;
 
-  static const _green = Color(0xFF1B4B3E);
-  static const _bg = Color(0xFFF5F0E8);
+  static const _green  = Color(0xFF1B4B3E);
+  static const _gold   = Color(0xFFC9A84C);
+  static const _bg     = Color(0xFFF5F0E8);
   static const _darkBg = Color(0xFF071912);
   static const _switchDuration = Duration(milliseconds: 700);
 
@@ -56,6 +58,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         vsync: this, duration: const Duration(milliseconds: 1600));
     _waveEnterCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 900));
+    _ambientCtrl = AnimationController(
+        vsync: this, duration: const Duration(seconds: 6))
+      ..repeat(reverse: true);
 
     _shutterA = Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(parent: _shutterCtrl, curve: Curves.easeInOut));
@@ -220,6 +225,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _mysticCtrl.dispose();
     _waveCtrl.dispose();
     _waveEnterCtrl.dispose();
+    _ambientCtrl.dispose();
     _cameraController?.dispose();
     _audioPlayer.dispose();
     super.dispose();
@@ -231,15 +237,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildHeader(),
-              _buildMainFrame(),
-              _buildButton(),
-              if (_ayet != null) _buildResultPanel(),
-            ],
+      body: AnimatedBuilder(
+        animation: _ambientCtrl,
+        builder: (_, child) => CustomPaint(
+          painter: _IslamicBackgroundPainter(_ambientCtrl.value),
+          child: child,
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildHeader(),
+                _buildMainFrame(),
+                _buildButton(),
+                if (_ayet != null) _buildResultPanel(),
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
       ),
@@ -248,38 +262,61 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Column(
         children: [
-          IconButton(
-            onPressed:
-                _viewState == _ViewState.camera ? _switchCamera : null,
-            icon: Icon(Icons.flip_camera_ios_rounded,
-                color: _viewState == _ViewState.camera
-                    ? _green
-                    : _green.withValues(alpha: 0.25),
-                size: 26),
+          // Başlık satırı
+          Row(
+            children: [
+              IconButton(
+                onPressed: _viewState == _ViewState.camera ? _switchCamera : null,
+                icon: Icon(Icons.flip_camera_ios_rounded,
+                    color: _viewState == _ViewState.camera
+                        ? _green
+                        : _green.withValues(alpha: 0.25),
+                    size: 26),
+              ),
+              const Expanded(
+                child: Column(
+                  children: [
+                    Text('بِسْمِ اللَّهِ',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 18,
+                            color: _gold,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2)),
+                    SizedBox(height: 2),
+                    Text('Nazar & Ferahlama',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: _green,
+                            letterSpacing: 0.5)),
+                  ],
+                ),
+              ),
+              IconButton(
+                  onPressed: _exitApp,
+                  icon: const Icon(Icons.close_rounded, color: _green, size: 26)),
+            ],
           ),
-          const Expanded(
-            child: Text('Nazar & Ferahlama',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: _green,
-                    letterSpacing: 0.5)),
+          // Altın ayırıcı çizgi
+          const Padding(
+            padding: EdgeInsets.fromLTRB(8, 6, 8, 12),
+            child: CustomPaint(
+              size: Size(double.infinity, 12),
+              painter: _DividerOrnamentPainter(),
+            ),
           ),
-          IconButton(
-              onPressed: _exitApp,
-              icon: const Icon(Icons.close_rounded, color: _green, size: 26)),
         ],
       ),
     );
   }
 
   Widget _buildMainFrame() {
-    if (_cameraController == null ||
-        !_cameraController!.value.isInitialized) {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return const SizedBox(
           height: 320,
           child: Center(child: CircularProgressIndicator(color: _green)));
@@ -290,39 +327,67 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: AspectRatio(
-          aspectRatio: portraitRatio,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Ana çerçeve — blur + scale + fade geçişleri
-              AnimatedSwitcher(
-                duration: _switchDuration,
-                transitionBuilder: _frameCrossfade,
-                layoutBuilder: (cur, prev) => Stack(
-                  fit: StackFit.expand,
-                  children: [...prev, if (cur != null) cur],
-                ),
-                child: KeyedSubtree(
-                  key: ValueKey(_viewState),
-                  child: _buildFrameContent(),
-                ),
-              ),
-              // Shutter flash — her zaman en üstte
-              AnimatedBuilder(
-                animation: _shutterCtrl,
-                builder: (_, __) => _shutterA.value > 0
-                    ? IgnorePointer(
-                        child: Opacity(
-                            opacity: _shutterA.value * 0.68,
-                            child: Container(color: Colors.white)))
-                    : const SizedBox.shrink(),
-              ),
-            ],
+      child: Column(
+        children: [
+          // Mukarnas üst kemer
+          CustomPaint(
+            size: Size(MediaQuery.of(context).size.width - 40, 44),
+            painter: const _MukarnasPainter(isTop: true),
           ),
-        ),
+          // Kamera/analiz çerçevesi
+          Container(
+            decoration: BoxDecoration(
+              border: Border.symmetric(
+                vertical: BorderSide(
+                    color: _gold.withValues(alpha: 0.55), width: 1.5),
+              ),
+            ),
+            child: ClipRect(
+              child: AspectRatio(
+                aspectRatio: portraitRatio,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Ana çerçeve içeriği
+                    AnimatedSwitcher(
+                      duration: _switchDuration,
+                      transitionBuilder: _frameCrossfade,
+                      layoutBuilder: (cur, prev) => Stack(
+                        fit: StackFit.expand,
+                        children: [...prev, if (cur != null) cur],
+                      ),
+                      child: KeyedSubtree(
+                        key: ValueKey(_viewState),
+                        child: _buildFrameContent(),
+                      ),
+                    ),
+                    // Köşe süslemeleri (her zaman görünür)
+                    const IgnorePointer(
+                      child: CustomPaint(
+                        painter: _FrameCornerPainter(),
+                      ),
+                    ),
+                    // Shutter flash
+                    AnimatedBuilder(
+                      animation: _shutterCtrl,
+                      builder: (_, __) => _shutterA.value > 0
+                          ? IgnorePointer(
+                              child: Opacity(
+                                  opacity: _shutterA.value * 0.68,
+                                  child: Container(color: Colors.white)))
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Mukarnas alt kemer
+          CustomPaint(
+            size: Size(MediaQuery.of(context).size.width - 40, 44),
+            painter: const _MukarnasPainter(isTop: false),
+          ),
+        ],
       ),
     );
   }
@@ -341,8 +406,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         Widget content = Transform.scale(scale: scaleA.value, child: ch);
         if (sigma > 0.3) {
           content = ImageFiltered(
-            imageFilter:
-                ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma, tileMode: TileMode.decal),
+            imageFilter: ui.ImageFilter.blur(
+                sigmaX: sigma, sigmaY: sigma, tileMode: TileMode.decal),
             child: content,
           );
         }
@@ -402,11 +467,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildButton() {
-    final isWaving = _viewState == _ViewState.playing;
+    final isWaving    = _viewState == _ViewState.playing;
     final isAnalyzing = _viewState == _ViewState.analyzing;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 8),
       child: SizedBox(
         width: double.infinity,
         child: ElevatedButton(
@@ -458,60 +523,85 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       curve: Curves.easeOutCubic,
       builder: (_, v, child) => Opacity(
         opacity: v,
-        child: Transform.translate(offset: Offset(0, 30 * (1 - v)), child: child),
+        child:
+            Transform.translate(offset: Offset(0, 30 * (1 - v)), child: child),
       ),
       child: Container(
-        margin: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+        margin: const EdgeInsets.fromLTRB(20, 4, 20, 8),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: _gold.withValues(alpha: 0.35), width: 1),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withValues(alpha: 0.07),
-                blurRadius: 16,
-                offset: const Offset(0, 4))
+                color: _green.withValues(alpha: 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 6)),
+            BoxShadow(
+                color: _gold.withValues(alpha: 0.12),
+                blurRadius: 8,
+                offset: const Offset(0, 2)),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(children: [
-                Expanded(
-                    child: Text(_ayet!.sureIsim,
-                        style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: _green))),
-                IconButton(
-                  onPressed: _toggleAudio,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: Icon(
-                      _isPlaying
-                          ? Icons.pause_circle_filled
-                          : Icons.play_circle_filled,
-                      color: _green,
-                      size: 34),
-                ),
-              ]),
-              const SizedBox(height: 10),
-              Text(_ayet!.arapca,
-                  textAlign: TextAlign.right,
-                  textDirection: TextDirection.rtl,
-                  style: const TextStyle(
-                      fontSize: 22, height: 2.2, color: Color(0xFF1A1A1A))),
-              const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Divider(color: Color(0xFFE0D8CC))),
-              Text(_ayet!.meal,
-                  style: const TextStyle(
-                      fontSize: 14,
-                      height: 1.7,
-                      color: Color(0xFF4A4A4A))),
-            ],
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Panel başlık süsü
+            const ClipRRect(
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(17)),
+              child: CustomPaint(
+                size: Size(double.infinity, 20),
+                painter: _PanelTopOrnamentPainter(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(children: [
+                    Expanded(
+                        child: Text(_ayet!.sureIsim,
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: _green))),
+                    IconButton(
+                      onPressed: _toggleAudio,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon: Icon(
+                          _isPlaying
+                              ? Icons.pause_circle_filled
+                              : Icons.play_circle_filled,
+                          color: _green,
+                          size: 34),
+                    ),
+                  ]),
+                  const SizedBox(height: 10),
+                  Text(_ayet!.arapca,
+                      textAlign: TextAlign.right,
+                      textDirection: TextDirection.rtl,
+                      style: const TextStyle(
+                          fontSize: 22,
+                          height: 2.2,
+                          color: Color(0xFF1A1A1A))),
+                  const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: CustomPaint(
+                        size: Size(double.infinity, 10),
+                        painter: _DividerOrnamentPainter(),
+                      )),
+                  Text(_ayet!.meal,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          height: 1.7,
+                          color: Color(0xFF4A4A4A))),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -541,15 +631,410 @@ class _AnalyzingIndicator extends StatelessWidget {
   }
 }
 
+// ─── İslami Arka Plan ────────────────────────────────────────────────────────
+// Zımba kafes deseni + hafif nefes eden altın noktalar
+
+class _IslamicBackgroundPainter extends CustomPainter {
+  final double t; // 0→1 (ambient, reverse: true)
+  _IslamicBackgroundPainter(this.t);
+
+  static const _bg   = Color(0xFFF5F0E8);
+  static const _gold = Color(0xFFC9A84C);
+  static const _green = Color(0xFF1B4B3E);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height),
+        Paint()..color = _bg);
+    _drawGeometricGrid(canvas, size);
+    _drawCornerRosettes(canvas, size);
+    _drawSideVines(canvas, size);
+  }
+
+  // 8-köşeli yıldız kafes deseni — çok hafif
+  void _drawGeometricGrid(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = _gold.withValues(alpha: 0.07 + 0.02 * t)
+      ..strokeWidth = 0.8
+      ..style = PaintingStyle.stroke;
+
+    const step = 52.0;
+    final cols = (size.width / step).ceil() + 2;
+    final rows = (size.height / step).ceil() + 2;
+
+    for (int row = -1; row < rows; row++) {
+      for (int col = -1; col < cols; col++) {
+        final cx = col * step + (row.isOdd ? step / 2 : 0);
+        final cy = row * step * 0.866;
+        _drawSmallStar(canvas, Offset(cx, cy), step * 0.22, paint);
+      }
+    }
+
+    // Bağlantı çizgileri
+    final linePaint = Paint()
+      ..color = _gold.withValues(alpha: 0.045)
+      ..strokeWidth = 0.6;
+    for (int row = -1; row < rows; row++) {
+      for (int col = -1; col < cols; col++) {
+        final cx = col * step + (row.isOdd ? step / 2 : 0);
+        final cy = row * step * 0.866;
+        canvas.drawLine(
+            Offset(cx, cy), Offset(cx + step, cy), linePaint);
+        canvas.drawLine(Offset(cx, cy),
+            Offset(cx + step / 2, cy + step * 0.433), linePaint);
+        canvas.drawLine(Offset(cx, cy),
+            Offset(cx - step / 2, cy + step * 0.433), linePaint);
+      }
+    }
+  }
+
+  void _drawSmallStar(Canvas canvas, Offset c, double r, Paint paint) {
+    final path = Path();
+    for (int i = 0; i < 16; i++) {
+      final a = i * pi / 8 - pi / 2;
+      final radius = i.isEven ? r : r * 0.45;
+      final pt = Offset(c.dx + radius * cos(a), c.dy + radius * sin(a));
+      if (i == 0) {
+        path.moveTo(pt.dx, pt.dy);
+      } else {
+        path.lineTo(pt.dx, pt.dy);
+      }
+    }
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  // Köşe rozet süsleri
+  void _drawCornerRosettes(Canvas canvas, Size size) {
+    final pulse = 0.55 + 0.1 * t;
+    final paint = Paint()
+      ..color = _gold.withValues(alpha: pulse * 0.22)
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+    final fillPaint = Paint()
+      ..color = _gold.withValues(alpha: pulse * 0.06);
+
+    final corners = [
+      const Offset(0, 0),
+      Offset(size.width, 0),
+      Offset(0, size.height),
+      Offset(size.width, size.height),
+    ];
+
+    for (final c in corners) {
+      _drawRosette(canvas, c, 72, paint, fillPaint);
+    }
+  }
+
+  void _drawRosette(Canvas canvas, Offset c, double r,
+      Paint stroke, Paint fill) {
+    // Dış çember
+    canvas.drawCircle(c, r, stroke);
+    // 8 iç çember (rozet)
+    for (int i = 0; i < 8; i++) {
+      final a = i * pi / 4;
+      final cc = Offset(c.dx + r * 0.5 * cos(a), c.dy + r * 0.5 * sin(a));
+      canvas.drawCircle(cc, r * 0.5, stroke);
+      canvas.drawCircle(cc, r * 0.5, fill);
+    }
+    // Merkez yıldız
+    _drawSmallStar(canvas, c, r * 0.28, stroke);
+  }
+
+  // Yan arabesk sarmaşık şeridi
+  void _drawSideVines(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = _green.withValues(alpha: 0.055 + 0.015 * t)
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    const bandW = 18.0;
+
+    for (final xBase in [0.0, size.width - bandW]) {
+      final path = Path();
+      const step = 28.0;
+      final count = (size.height / step).ceil() + 2;
+      for (int i = 0; i < count; i++) {
+        final y = i * step.toDouble();
+        final flip = i.isEven ? 1.0 : -1.0;
+        final cx = xBase + bandW / 2 + flip * bandW * 0.35;
+        path.addOval(Rect.fromCenter(
+            center: Offset(cx, y + step / 2),
+            width: bandW * 0.7,
+            height: step * 0.72));
+      }
+      canvas.drawPath(path, paint);
+
+      // Merkez dikey çizgi
+      canvas.drawLine(Offset(xBase + bandW / 2, 0),
+          Offset(xBase + bandW / 2, size.height), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_IslamicBackgroundPainter old) => old.t != t;
+}
+
+// ─── Mukarnas Kemeri ─────────────────────────────────────────────────────────
+
+class _MukarnasPainter extends CustomPainter {
+  final bool isTop;
+  const _MukarnasPainter({required this.isTop});
+
+  static const _gold  = Color(0xFFC9A84C);
+  static const _green = Color(0xFF1B4B3E);
+  static const _bg    = Color(0xFFF5F0E8);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final h = size.height;
+    final w = size.width;
+
+    if (!isTop) {
+      canvas.save();
+      canvas.translate(0, h);
+      canvas.scale(1, -1);
+    }
+
+    // Arkaplan dolgu — kemerin arkasını bg rengine boyuyoruz
+    canvas.drawRect(
+        Rect.fromLTWH(0, 0, w, h), Paint()..color = _bg);
+
+    // Stalaktit niş dizisi
+    final nichePaint = Paint()
+      ..color = _gold.withValues(alpha: 0.13)
+      ..style = PaintingStyle.fill;
+    final strokePaint = Paint()
+      ..color = _gold.withValues(alpha: 0.72)
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+    final accentPaint = Paint()
+      ..color = _green.withValues(alpha: 0.55)
+      ..strokeWidth = 0.8
+      ..style = PaintingStyle.stroke;
+
+    const niches = 7;
+    final nw = w / niches;
+
+    for (int i = 0; i < niches; i++) {
+      final x = i * nw;
+      _drawMuqarnasNiche(canvas, x, nw, h, nichePaint, strokePaint, accentPaint);
+    }
+
+    // Üst yatay şerit
+    canvas.drawLine(const Offset(0, 1), Offset(w, 1), strokePaint);
+
+    // Merkez rozet
+    _drawMiniRosette(canvas, Offset(w / 2, h * 0.38), h * 0.22, strokePaint);
+
+    if (!isTop) canvas.restore();
+  }
+
+  void _drawMuqarnasNiche(Canvas canvas, double x, double nw, double h,
+      Paint fill, Paint stroke, Paint accent) {
+    final cx = x + nw / 2;
+    final archW = nw * 0.88;
+
+    // Sivri kemer (ogive arch)
+    final path = Path();
+    // Sol yay
+    path.moveTo(cx - archW / 2, h);
+    path.quadraticBezierTo(
+        cx - archW / 2, h * 0.15, cx, h * 0.05);
+    // Sağ yay
+    path.quadraticBezierTo(
+        cx + archW / 2, h * 0.15, cx + archW / 2, h);
+    path.close();
+
+    canvas.drawPath(path, fill);
+    canvas.drawPath(path, stroke);
+
+    // İç küçük kemer
+    final innerPath = Path();
+    final iw = archW * 0.6;
+    innerPath.moveTo(cx - iw / 2, h);
+    innerPath.quadraticBezierTo(cx - iw / 2, h * 0.28, cx, h * 0.17);
+    innerPath.quadraticBezierTo(cx + iw / 2, h * 0.28, cx + iw / 2, h);
+    canvas.drawPath(innerPath, accent);
+
+    // Kilit taşı noktası
+    canvas.drawCircle(Offset(cx, h * 0.1), 2.8,
+        Paint()..color = _gold.withValues(alpha: 0.8));
+    canvas.drawCircle(Offset(cx, h * 0.1), 1.2,
+        Paint()..color = _gold);
+
+    // Kemer ayakları
+    canvas.drawLine(Offset(x, 0), Offset(x, h), stroke);
+  }
+
+  void _drawMiniRosette(Canvas canvas, Offset c, double r, Paint paint) {
+    canvas.drawCircle(c, r, paint);
+    for (int i = 0; i < 8; i++) {
+      final a = i * pi / 4;
+      canvas.drawLine(c,
+          Offset(c.dx + r * cos(a), c.dy + r * sin(a)), paint);
+    }
+    canvas.drawCircle(c, r * 0.45, paint);
+    canvas.drawCircle(c, r * 0.18, Paint()..color = _gold.withValues(alpha: 0.6));
+  }
+
+  @override
+  bool shouldRepaint(_MukarnasPainter old) => false;
+}
+
+// ─── Çerçeve Köşe Süsü ───────────────────────────────────────────────────────
+
+class _FrameCornerPainter extends CustomPainter {
+  const _FrameCornerPainter();
+
+  static const _gold = Color(0xFFC9A84C);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = _gold.withValues(alpha: 0.75)
+      ..strokeWidth = 1.8
+      ..style = PaintingStyle.stroke;
+
+    const arm = 22.0;
+    const dot = 3.0;
+
+    final corners = [
+      (Offset.zero, 1.0, 1.0),
+      (Offset(size.width, 0), -1.0, 1.0),
+      (Offset(0, size.height), 1.0, -1.0),
+      (Offset(size.width, size.height), -1.0, -1.0),
+    ];
+
+    for (final (c, xd, yd) in corners) {
+      // L-çizgileri
+      canvas.drawLine(c, Offset(c.dx + arm * xd, c.dy), paint);
+      canvas.drawLine(c, Offset(c.dx, c.dy + arm * yd), paint);
+      // Köşe noktası
+      canvas.drawCircle(
+          Offset(c.dx + 5.5 * xd, c.dy + 5.5 * yd), dot,
+          Paint()..color = _gold);
+      // Küçük iç L
+      canvas.drawLine(
+          Offset(c.dx + 6 * xd, c.dy + 6 * yd),
+          Offset(c.dx + 14 * xd, c.dy + 6 * yd),
+          paint..color = _gold.withValues(alpha: 0.45));
+      canvas.drawLine(
+          Offset(c.dx + 6 * xd, c.dy + 6 * yd),
+          Offset(c.dx + 6 * xd, c.dy + 14 * yd),
+          paint..color = _gold.withValues(alpha: 0.45));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_FrameCornerPainter old) => false;
+}
+
+// ─── Altın Ayırıcı Çizgi ─────────────────────────────────────────────────────
+
+class _DividerOrnamentPainter extends CustomPainter {
+  const _DividerOrnamentPainter();
+
+  static const _gold  = Color(0xFFC9A84C);
+  static const _green = Color(0xFF1B4B3E);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+
+    final linePaint = Paint()
+      ..color = _gold.withValues(alpha: 0.55)
+      ..strokeWidth = 1.0;
+
+    // Sol çizgi
+    canvas.drawLine(Offset(0, cy), Offset(cx - 18, cy), linePaint);
+    // Sağ çizgi
+    canvas.drawLine(Offset(cx + 18, cy), Offset(size.width, cy), linePaint);
+
+    // Merkez elmas
+    final diamond = Path()
+      ..moveTo(cx, cy - 5)
+      ..lineTo(cx + 8, cy)
+      ..lineTo(cx, cy + 5)
+      ..lineTo(cx - 8, cy)
+      ..close();
+    canvas.drawPath(diamond,
+        Paint()..color = _gold.withValues(alpha: 0.6));
+    canvas.drawPath(
+        diamond,
+        Paint()
+          ..color = _green.withValues(alpha: 0.4)
+          ..strokeWidth = 0.8
+          ..style = PaintingStyle.stroke);
+
+    // Yan küçük noktalar
+    for (final dx in [-14.0, 14.0]) {
+      canvas.drawCircle(Offset(cx + dx, cy), 1.8,
+          Paint()..color = _gold.withValues(alpha: 0.65));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DividerOrnamentPainter old) => false;
+}
+
+// ─── Sonuç Paneli Üst Süsü ───────────────────────────────────────────────────
+
+class _PanelTopOrnamentPainter extends CustomPainter {
+  const _PanelTopOrnamentPainter();
+
+  static const _gold  = Color(0xFFC9A84C);
+  static const _green = Color(0xFF1B4B3E);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Altın gradient şerit
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = LinearGradient(
+            colors: [
+              _green.withValues(alpha: 0.85),
+              _green,
+              _green.withValues(alpha: 0.85),
+            ],
+          ).createShader(rect));
+
+    // Tekrarlayan küçük elmas motifi
+    final diamondPaint = Paint()
+      ..color = _gold.withValues(alpha: 0.45);
+
+    const spacing = 28.0;
+    final count = (size.width / spacing).ceil() + 1;
+    for (int i = 0; i < count; i++) {
+      final cx = i * spacing + spacing / 2;
+      final cy = size.height / 2;
+      final path = Path()
+        ..moveTo(cx, cy - 4)
+        ..lineTo(cx + 5, cy)
+        ..lineTo(cx, cy + 4)
+        ..lineTo(cx - 5, cy)
+        ..close();
+      canvas.drawPath(path, diamondPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PanelTopOrnamentPainter old) => false;
+}
+
 // ─── Mistik Animasyon ────────────────────────────────────────────────────────
 
 class _MysticPainter extends CustomPainter {
   final double t;
   _MysticPainter(this.t);
 
-  static const _gold = Color(0xFFC9A84C);
+  static const _gold      = Color(0xFFC9A84C);
   static const _lightGold = Color(0xFFE8D5A3);
-  static const _teal = Color(0xFF3DB88A);
+  static const _teal      = Color(0xFF3DB88A);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -591,16 +1076,13 @@ class _MysticPainter extends CustomPainter {
           Offset(c.dx + r * cos(a), c.dy + r * sin(a)),
           (large ? 3.2 : 1.8) * pulse,
           Paint()
-            ..color =
-                _lightGold.withValues(alpha: large ? 0.85 : 0.45));
+            ..color = _lightGold.withValues(alpha: large ? 0.85 : 0.45));
     }
   }
 
-  void _drawArabesqueRing(
-      Canvas canvas, Offset c, double r, double rot) {
+  void _drawArabesqueRing(Canvas canvas, Offset c, double r, double rot) {
     canvas.drawCircle(
-        c,
-        r,
+        c, r,
         Paint()
           ..color = _teal.withValues(alpha: 0.12)
           ..strokeWidth = 1.0
@@ -643,8 +1125,7 @@ class _MysticPainter extends CustomPainter {
     path.close();
 
     if (filled) {
-      canvas.drawPath(path,
-          Paint()..color = _gold.withValues(alpha: 0.88));
+      canvas.drawPath(path, Paint()..color = _gold.withValues(alpha: 0.88));
       canvas.drawPath(
           path,
           Paint()
@@ -663,8 +1144,7 @@ class _MysticPainter extends CustomPainter {
   void _drawCenter(Canvas canvas, Offset c, double maxR) {
     final pulse = 0.82 + 0.18 * sin(t * 2 * pi * 2.5);
     canvas.drawCircle(
-        c,
-        maxR * 0.14 * pulse,
+        c, maxR * 0.14 * pulse,
         Paint()
           ..color = _gold.withValues(alpha: 0.22)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14));
@@ -682,7 +1162,7 @@ class _MysticPainter extends CustomPainter {
 class _WavePainter extends CustomPainter {
   final double t;
   final bool isPlaying;
-  final double entrance; // 0→1, barlar büyür
+  final double entrance;
 
   _WavePainter(this.t, this.isPlaying, this.entrance);
 
@@ -696,7 +1176,6 @@ class _WavePainter extends CustomPainter {
     final barW = totalW / (barCount * 2 - 1);
     final startX = (size.width - totalW) / 2;
 
-    // entrance eğrisi — elastik bir "çıkış" efekti
     final entranceCurve = Curves.elasticOut.transform(entrance.clamp(0.0, 1.0));
 
     for (int i = 0; i < barCount; i++) {
@@ -773,7 +1252,6 @@ class _ScanOverlayPainter extends CustomPainter {
     final scanY = progress * size.height;
     final fade = sin(progress * pi).clamp(0.0, 1.0);
 
-    // Glow
     canvas.drawRect(
       Rect.fromCenter(
           center: Offset(size.width / 2, scanY),
@@ -784,7 +1262,6 @@ class _ScanOverlayPainter extends CustomPainter {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
     );
 
-    // Çizgi
     canvas.drawLine(
       Offset(0, scanY),
       Offset(size.width, scanY),
