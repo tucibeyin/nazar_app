@@ -12,18 +12,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Artık tekli ayetler yerine kendi ürettiğimiz uzun soluklu terapi paketlerini çekiyoruz
-_data_path = Path(__file__).parent / "paket_db.json"
+_data_path = Path(__file__).parent / "quran_data.json"
 if not _data_path.exists():
-    raise RuntimeError("paket_db.json bulunamadı. Önce otomatik_paketleyici.py çalıştırın.")
+    raise RuntimeError("quran_data.json bulunamadı. Önce build_db.py çalıştırın.")
 
 with _data_path.open(encoding="utf-8") as f:
-    TERAPI_PAKETLERI: list = json.load(f)
+    AYETLER: list = json.load(f)
 
 @app.get("/api/nazar/{hash_sayisi}")
 async def get_ayet(hash_sayisi: int):
-    if not TERAPI_PAKETLERI:
-        raise HTTPException(status_code=404, detail="Paket bulunamadı")
-        
-    secilen_index = hash_sayisi % len(TERAPI_PAKETLERI)
-    return TERAPI_PAKETLERI[secilen_index]
+    if not AYETLER:
+        raise HTTPException(status_code=404, detail="Ayet veritabanı boş.")
+
+    secilen_index = hash_sayisi % len(AYETLER)
+    return AYETLER[secilen_index]

@@ -14,10 +14,10 @@ class Ayet {
   });
 
   factory Ayet.fromJson(Map<String, dynamic> json) => Ayet(
-        id: json['id'],
-        sureIsim: json['sure_isim'],
-        arapca: json['arapca'],
-        meal: json['meal'],
-        mp3Url: json['mp3_url'],
+        id: (json['id'] as num?)?.toInt() ?? 0,
+        sureIsim: (json['sure_isim'] as String?) ?? '',
+        arapca: (json['arapca'] as String?) ?? '',
+        meal: (json['meal'] as String?) ?? '',
+        mp3Url: (json['mp3_url'] as String?) ?? '',
       );
 }
