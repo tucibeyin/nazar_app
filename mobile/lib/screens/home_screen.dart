@@ -1,7 +1,7 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -156,10 +156,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       _handleError(_friendlyApiError(e));
     } on CameraException catch (e) {
       AppLogger.error('CameraException', e.code, null);
-      _handleError('Kamera hatası: ${e.description ?? e.code}. Lütfen izinleri kontrol edin.');
+      _handleError(
+        kDebugMode
+            ? '[DEBUG] CameraException(${e.code}): ${e.description}'
+            : 'Kamera hatası. Lütfen izinleri kontrol edin.',
+      );
     } catch (e, st) {
       AppLogger.error('Unexpected analysis error', e, st);
-      _handleError('Hata: $e');
+      _handleError(
+        kDebugMode
+            ? '[DEBUG] ${e.runtimeType}: $e'
+            : 'Beklenmedik bir hata oluştu. Lütfen tekrar deneyin.',
+      );
     }
   }
 
