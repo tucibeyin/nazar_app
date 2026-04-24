@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
 
@@ -19,19 +20,24 @@ class ApiException implements Exception {
 
 class ApiService {
   final http.Client _client;
+  static final _rng = math.Random();
 
   ApiService({http.Client? client}) : _client = client ?? http.Client();
 
   /// Belirtilen hash için ayet getirir.
-  /// Ağ hatasında [kMaxRetries] kez tekrar dener.
+  /// Ağ hatasında [kMaxRetries] kez exponential + jitter backoff ile tekrar dener.
   Future<Ayet> fetchAyet(int hashInt) async {
     final uri = Uri.parse(ApiConfig.nazarEndpoint(hashInt));
+    final headers = <String, String>{
+      'Accept': 'application/json',
+      if (ApiConfig.apiKey.isNotEmpty) 'X-API-Key': ApiConfig.apiKey,
+    };
     Exception? lastError;
 
     for (int attempt = 1; attempt <= kMaxRetries; attempt++) {
       try {
-        AppLogger.info('fetchAyet attempt $attempt', uri.toString());
-        final response = await _client.get(uri).timeout(kApiTimeout);
+        AppLogger.info('fetchAyet attempt $attempt');
+        final response = await _client.get(uri, headers: headers).timeout(kApiTimeout);
 
         if (response.statusCode == 200) {
           return Ayet.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
@@ -41,7 +47,16 @@ class ApiService {
           throw const ApiException('Çok fazla istek gönderildi. Lütfen bekleyin.', statusCode: 429);
         }
 
-        throw ApiException('Sunucu hatası.', statusCode: response.statusCode);
+        if (response.statusCode == 401) {
+          throw const ApiException('Yetkilendirme hatası.', statusCode: 401);
+        }
+
+        if (response.statusCode >= 400 && response.statusCode < 500) {
+          throw ApiException('İstemci hatası.', statusCode: response.statusCode);
+        }
+
+        // 5xx — geçici sunucu hatası, retry edilebilir
+        lastError = ApiException('Sunucu hatası.', statusCode: response.statusCode);
       } on ApiException {
         rethrow;
       } on SocketException {
@@ -56,8 +71,10 @@ class ApiService {
       }
 
       if (attempt < kMaxRetries) {
-        AppLogger.warning('fetchAyet retry in ${kRetryBackoff.inSeconds}s');
-        await Future<void>.delayed(kRetryBackoff * attempt);
+        final jitter = Duration(milliseconds: _rng.nextInt(500));
+        final delay = kRetryBackoff * attempt + jitter;
+        AppLogger.warning('fetchAyet retry in ${delay.inMilliseconds}ms (attempt $attempt)');
+        await Future<void>.delayed(delay);
       }
     }
 

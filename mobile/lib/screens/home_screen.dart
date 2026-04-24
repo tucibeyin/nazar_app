@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +14,7 @@ import '../services/api_service.dart';
 import '../utils/hash_util.dart';
 import '../widgets/analyzing_indicator.dart';
 import '../widgets/camera_frame_widget.dart';
+import '../widgets/connectivity_banner_widget.dart';
 import '../widgets/painters/painters.dart';
 import '../widgets/result_panel_widget.dart';
 import '../widgets/tesbih_widget.dart';
@@ -66,11 +68,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       (c) => c.lensDirection == CameraLensDirection.front,
     );
     if (_cameraIndex == -1) _cameraIndex = 0;
-    _initCamera(_cameraIndex);
+    if (widget.cameras.isNotEmpty) _initCamera(_cameraIndex);
 
     final audio = ref.read(audioServiceProvider);
     audio.stateStream.listen((s) {
-      if (mounted) setState(() => _isPlaying = s.name == 'playing');
+      if (mounted) setState(() => _isPlaying = s == PlayerState.playing);
     });
     audio.completionStream.listen((_) {
       if (mounted) _transitionToCamera();
@@ -107,6 +109,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     if (_cameraController == null || !_cameraController!.value.isInitialized) return;
     if (_isLoading || _viewState != AppViewState.camera) return;
 
+    // Çevrimdışı kontrolü
+    final isOnline = ref.read(connectivityProvider);
+    if (!isOnline) {
+      _handleError('İnternet bağlantısı yok. Lütfen bağlantınızı kontrol edin.', canRetry: false);
+      return;
+    }
+
     setState(() { _isLoading = true; _ayet = null; _capturedPhotoBytes = null; });
 
     try {
@@ -119,11 +128,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       if (mounted) setState(() => _capturedPhotoBytes = bytes);
 
       final hashInt = HashUtil.fromBytes(bytes);
-      AppLogger.info('Analysis hash', hashInt);
+      AppLogger.info('Analysis started');
 
-      final api = ref.read(apiServiceProvider);
+      final repo = ref.read(ayetRepositoryProvider);
       final results = await Future.wait([
-        api.fetchAyet(hashInt),
+        repo.fetchAyet(hashInt),
         Future<void>.delayed(kMinAnalysisPause),
       ]);
       final ayet = results[0] as Ayet;
@@ -153,18 +162,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   String _friendlyApiError(ApiException e) {
     if (e.statusCode == 429) return 'Çok fazla istek gönderildi. Lütfen bekleyin.';
+    if (e.statusCode == 401) return 'Yetkilendirme hatası. Lütfen uygulamayı güncelleyin.';
     if (e.message.contains('bağlantı') || e.message.contains('internet')) {
       return 'İnternet bağlantısı bulunamadı.';
     }
     return 'Sunucuya ulaşılamadı. Lütfen tekrar deneyin.';
   }
 
-  void _handleError(String message) {
+  void _handleError(String message, {bool canRetry = true}) {
     _mysticCtrl.stop();
     if (!mounted) return;
     setState(() { _isLoading = false; _viewState = AppViewState.camera; });
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message),
+        action: canRetry
+            ? SnackBarAction(
+                label: 'Tekrar Dene',
+                textColor: Colors.white,
+                onPressed: _analyze,
+              )
+            : null,
+      ),
     );
   }
 
@@ -275,23 +294,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           ),
           // Katman 3: İçerik
           SafeArea(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  _buildHeader(),
-                  _buildMainFrame(),
-                  _buildButton(),
-                  if (_viewState == AppViewState.playing)
-                    TesbihWidget(controller: _tesbihCtrl, isPlaying: _isPlaying),
-                  if (_ayet != null)
-                    ResultPanelWidget(
-                      ayet: _ayet!,
-                      isPlaying: _isPlaying,
-                      onToggleAudio: _toggleAudio,
+            child: Column(
+              children: [
+                const ConnectivityBannerWidget(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        _buildHeader(),
+                        _buildMainFrame(),
+                        _buildButton(),
+                        if (_viewState == AppViewState.playing)
+                          TesbihWidget(controller: _tesbihCtrl, isPlaying: _isPlaying),
+                        if (_ayet != null)
+                          ResultPanelWidget(
+                            ayet: _ayet!,
+                            isPlaying: _isPlaying,
+                            onToggleAudio: _toggleAudio,
+                          ),
+                        const SizedBox(height: 150),
+                      ],
                     ),
-                  const SizedBox(height: 150),
-                ],
-              ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

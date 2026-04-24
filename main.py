@@ -1,15 +1,18 @@
 import json
 import os
+import time
 from pathlib import Path
 
 import structlog
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, field_validator
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv()
 
@@ -38,8 +41,53 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
     allow_methods=["GET"],
-    allow_headers=["Accept", "Content-Type"],
+    allow_headers=["Accept", "Content-Type", "X-API-Key"],
 )
+
+# ─── Timing Middleware ────────────────────────────────────────────────────────
+
+
+class TimingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start = time.perf_counter()
+        response = await call_next(request)
+        duration_ms = round((time.perf_counter() - start) * 1000, 2)
+        response.headers["X-Response-Time"] = f"{duration_ms}ms"
+        log.info(
+            "request_completed",
+            method=request.method,
+            path=request.url.path,
+            status_code=response.status_code,
+            duration_ms=duration_ms,
+            client_ip=get_remote_address(request),
+        )
+        return response
+
+
+# ─── API Key Middleware ────────────────────────────────────────────────────────
+
+_API_KEY = os.getenv("API_KEY", "")
+
+_PUBLIC_PATHS = {"/health"}
+
+
+class ApiKeyMiddleware(BaseHTTPMiddleware):
+    """X-API-Key header doğrulaması. API_KEY env boşsa devre dışı."""
+
+    async def dispatch(self, request: Request, call_next):
+        if not _API_KEY or request.url.path in _PUBLIC_PATHS:
+            return await call_next(request)
+        key = request.headers.get("X-API-Key", "")
+        if key != _API_KEY:
+            return JSONResponse(
+                {"detail": "Yetkisiz erişim. Geçerli bir X-API-Key gerekli."},
+                status_code=401,
+            )
+        return await call_next(request)
+
+
+app.add_middleware(TimingMiddleware)
+app.add_middleware(ApiKeyMiddleware)
 
 # ─── Veri Yükle ───────────────────────────────────────────────────────────────
 
@@ -61,6 +109,13 @@ class AyetResponse(BaseModel):
     arapca: str
     meal: str
     mp3_url: str
+
+    @field_validator("mp3_url")
+    @classmethod
+    def mp3_url_not_empty(cls, v: str) -> str:
+        if not v:
+            raise ValueError("mp3_url boş olamaz")
+        return v
 
 
 class HealthResponse(BaseModel):

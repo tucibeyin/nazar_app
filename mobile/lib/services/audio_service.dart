@@ -12,9 +12,13 @@ class AudioService {
   bool get isPlaying => _player.state == PlayerState.playing;
 
   Future<void> playFromPath(String mp3Path) async {
+    if (mp3Path.isEmpty) {
+      AppLogger.warning('AudioService.play: mp3Path boş, atlanıyor');
+      return;
+    }
     try {
       final url = ApiConfig.audioUrl(mp3Path);
-      AppLogger.info('AudioService.play', url);
+      AppLogger.info('AudioService.play');
       await _player.stop();
       await _player.play(UrlSource(url));
     } catch (e, st) {

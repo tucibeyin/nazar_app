@@ -6,8 +6,12 @@ import 'package:http/testing.dart';
 import 'package:nazar_app/models/ayet.dart';
 import 'package:nazar_app/services/api_service.dart';
 
-http.Client _mockClient(int status, Map<String, dynamic> body) => MockClient((_) async =>
-    http.Response(jsonEncode(body), status, headers: {'content-type': 'application/json'}));
+http.Client _mockClient(int status, Map<String, dynamic> body) =>
+    MockClient((_) async => http.Response(
+          jsonEncode(body),
+          status,
+          headers: {'content-type': 'application/json'},
+        ));
 
 const _validJson = {
   'id': 1,
@@ -28,22 +32,47 @@ void main() {
     });
 
     test('429 hata ApiException(statusCode:429) fırlatır', () async {
-      final service = ApiService(
-        client: _mockClient(429, {'detail': 'rate limit'}),
-      );
+      final service = ApiService(client: _mockClient(429, {'detail': 'rate limit'}));
       expect(
         () => service.fetchAyet(1),
-        throwsA(
-          isA<ApiException>().having((e) => e.statusCode, 'statusCode', 429),
-        ),
+        throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 429)),
+      );
+    });
+
+    test('401 hata ApiException(statusCode:401) fırlatır', () async {
+      final service = ApiService(client: _mockClient(401, {'detail': 'unauthorized'}));
+      expect(
+        () => service.fetchAyet(1),
+        throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 401)),
       );
     });
 
     test('500 hata ApiException fırlatır', () async {
-      final service = ApiService(
-        client: _mockClient(500, {'detail': 'server error'}),
-      );
+      final service = ApiService(client: _mockClient(500, {'detail': 'server error'}));
       expect(() => service.fetchAyet(1), throwsA(isA<ApiException>()));
+    });
+
+    test('retry: geçici hata sonrası başarılı yanıt döndürür', () async {
+      int attempts = 0;
+      final client = MockClient((_) async {
+        attempts++;
+        if (attempts < 2) {
+          return http.Response('{"detail":"error"}', 500,
+              headers: {'content-type': 'application/json'});
+        }
+        return http.Response(jsonEncode(_validJson), 200,
+            headers: {'content-type': 'application/json'});
+      });
+      final service = ApiService(client: client);
+      final ayet = await service.fetchAyet(1);
+      expect(ayet.id, 1);
+      expect(attempts, 2, reason: 'İlk denemede hata, ikincide başarılı');
+    });
+
+    test('ApiException.toString mesaj ve statusCode içerir', () {
+      const e = ApiException('test hatası', statusCode: 503);
+      expect(e.toString(), contains('503'));
+      expect(e.toString(), contains('test hatası'));
     });
   });
 }

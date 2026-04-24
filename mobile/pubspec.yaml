@@ -14,6 +14,8 @@ dependencies:
   http: ^1.2.1
   audioplayers: ^6.1.0
   flutter_riverpod: ^2.6.1
+  go_router: ^14.0.0
+  connectivity_plus: ^6.0.3
 
 dev_dependencies:
   flutter_test:
@@ -25,7 +27,7 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assests/icon/nazar_icon.png"
+  image_path: "assets/icon/nazar_icon.png"
   min_sdk_android: 21
   remove_alpha_ios: true
 

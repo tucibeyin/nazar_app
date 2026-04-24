@@ -1,6 +1,7 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'config/theme.dart';
 import 'screens/home_screen.dart';
@@ -17,17 +18,45 @@ Future<void> main() async {
   );
 }
 
-class NazarApp extends StatelessWidget {
+class NazarApp extends StatefulWidget {
   final List<CameraDescription> cameras;
   const NazarApp({super.key, required this.cameras});
 
   @override
+  State<NazarApp> createState() => _NazarAppState();
+}
+
+class _NazarAppState extends State<NazarApp> {
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _router = GoRouter(
+      debugLogDiagnostics: false,
+      routes: [
+        GoRoute(
+          path: '/',
+          name: 'home',
+          builder: (_, __) => HomeScreen(cameras: widget.cameras),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _router.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Nazar & Ferahlama',
       debugShowCheckedModeBanner: false,
       theme: nazarTheme,
-      home: HomeScreen(cameras: cameras),
+      routerConfig: _router,
     );
   }
 }
