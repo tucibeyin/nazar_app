@@ -154,9 +154,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       await audio.playFromPath(ayet.mp3Url);
     } on ApiException catch (e) {
       _handleError(_friendlyApiError(e));
+    } on CameraException catch (e) {
+      AppLogger.error('CameraException', e.code, null);
+      _handleError('Kamera hatası: ${e.description ?? e.code}. Lütfen izinleri kontrol edin.');
     } catch (e, st) {
       AppLogger.error('Unexpected analysis error', e, st);
-      _handleError('Beklenmedik bir hata oluştu. Lütfen tekrar deneyin.');
+      _handleError('Hata: $e');
     }
   }
 

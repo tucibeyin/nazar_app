@@ -29,7 +29,8 @@ flutter pub get
 flutter build ipa --release \
   --obfuscate \
   --split-debug-info=build/app/outputs/symbols \
-  --export-method app-store
+  --export-method app-store \
+  ${API_KEY:+--dart-define=API_KEY=$API_KEY}
 
 echo "Apple sunucularına gönderiliyor..."
 xcrun altool --upload-app --type ios \
