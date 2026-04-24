@@ -1,0 +1,79 @@
+# Nazar & Ferahlama — CLAUDE.md
+
+## Proje Özeti
+
+Flutter mobil uygulama + FastAPI backend. Kamera ile fotoğraf çeker, SHA-256 hash üretir, backend'den Kuran ayeti alır, sesli okur.
+
+## Klasör Yapısı
+
+```
+nazar_app/
+├── main.py                  # FastAPI backend
+├── build_db.py              # quran_data.json üretici
+├── requirements.txt         # Python bağımlılıkları
+├── tests/                   # Backend pytest testleri
+├── .github/workflows/       # CI/CD pipeline
+└── mobile/
+    └── lib/
+        ├── config/          # app_constants.dart, theme.dart, api_config.dart
+        ├── core/            # logger.dart
+        ├── models/          # ayet.dart
+        ├── providers/       # service_providers.dart (Riverpod)
+        ├── screens/         # home_screen.dart (UI orchestration)
+        ├── services/        # api_service.dart, audio_service.dart
+        ├── utils/           # hash_util.dart
+        └── widgets/
+            ├── painters/    # Tüm CustomPainter sınıfları
+            ├── camera_frame_widget.dart
+            ├── result_panel_widget.dart
+            ├── tesbih_widget.dart
+            └── analyzing_indicator.dart
+```
+
+## Renk Paleti (Topkapı El Yazması)
+
+`lib/config/app_constants.dart` dosyasında tanımlı:
+- `kBg` (0xFFF3E8CE) — parşömen sarısı
+- `kGreen` (0xFF1B4B3E) — zümrüt yeşili
+- `kGold` (0xFFC9A84C) — Osmanlı altını
+- `kIndigo` (0xFF1A3A5C) — lapis lazuli
+
+## Mimari Kurallar
+
+- **Servis katmanı** (`services/`): Tüm I/O (HTTP, ses) buraya. Widget bağımlılığı yok.
+- **Provider** (`providers/`): Riverpod ile DI. `ref.read(apiServiceProvider)` ile erişim.
+- **Painter** (`widgets/painters/`): Sadece çizim mantığı. Hiçbir iş mantığı içermez.
+- **Widget** (`widgets/`): Saf görsel bileşen. State taşımaz.
+- **Screen** (`screens/`): State yönetimi burada. Servisler `ref.read()` ile çekilir.
+
+## Analiz Akışı
+
+```
+camera → (shutter flash) → analyzing → (hash + API fetch) → playing → camera
+```
+
+`AppViewState` enum: `camera | analyzing | playing`
+
+## Önemli Notlar
+
+- `Ayet.fromJson`: tam tip güvenceli (is num / is String kontrolleri)
+- `ApiService`: 3 deneme, exponential backoff, kullanıcı dostu hata mesajları
+- `HashUtil.fromBytes`: SHA-256 → ilk 8 bayt → int64 → abs()
+- deploy.sh: credentials **asla** kodda olmaz, env var kullanılır
+
+## Komutlar
+
+```bash
+# Backend
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000
+pytest tests/ -v
+
+# Flutter
+cd mobile
+flutter pub get
+flutter analyze
+flutter test
+flutter build apk --release
+./deploy.sh <build_no>   # APPLE_ID ve APP_SPECIFIC_PASS env var gerekli
+```

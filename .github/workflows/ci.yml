@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ─── Backend ─────────────────────────────────────────────────────────────────
+  backend:
+    name: Backend (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 3.12 kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Bağımlılıkları yükle
+        run: pip install -r requirements.txt pytest httpx
+
+      - name: Backend testlerini çalıştır
+        run: pytest tests/ -v
+
+  # ─── Flutter Lint + Test ──────────────────────────────────────────────────────
+  flutter-test:
+    name: Flutter (Lint + Test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Flutter kur
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.x'
+          channel: stable
+          cache: true
+
+      - name: Bağımlılıkları yükle
+        run: flutter pub get
+
+      - name: Lint
+        run: flutter analyze --fatal-infos
+
+      - name: Unit testleri çalıştır
+        run: flutter test --coverage
+
+  # ─── iOS Build (only on main) ─────────────────────────────────────────────────
+  ios-build:
+    name: iOS Build
+    needs: flutter-test
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Flutter kur
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.x'
+          channel: stable
+
+      - name: Bağımlılıkları yükle
+        run: flutter pub get
+
+      - name: iOS release build
+        run: |
+          flutter build ios --release --no-codesign
+
+  # ─── Android Build (only on main) ────────────────────────────────────────────
+  android-build:
+    name: Android Build
+    needs: flutter-test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 17 kur
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+
+      - name: Flutter kur
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.x'
+          channel: stable
+
+      - name: Bağımlılıkları yükle
+        run: flutter pub get
+
+      - name: Android APK build
+        run: flutter build apk --release

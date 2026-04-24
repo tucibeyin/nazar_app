@@ -5,7 +5,7 @@ class Ayet {
   final String meal;
   final String mp3Url;
 
-  Ayet({
+  const Ayet({
     required this.id,
     required this.sureIsim,
     required this.arapca,
@@ -14,10 +14,10 @@ class Ayet {
   });
 
   factory Ayet.fromJson(Map<String, dynamic> json) => Ayet(
-        id: (json['id'] as num?)?.toInt() ?? 0,
-        sureIsim: (json['sure_isim'] as String?) ?? '',
-        arapca: (json['arapca'] as String?) ?? '',
-        meal: (json['meal'] as String?) ?? '',
-        mp3Url: (json['mp3_url'] as String?) ?? '',
+        id: (json['id'] is num) ? (json['id'] as num).toInt() : 0,
+        sureIsim: (json['sure_isim'] is String) ? json['sure_isim'] as String : '',
+        arapca: (json['arapca'] is String) ? json['arapca'] as String : '',
+        meal: (json['meal'] is String) ? json['meal'] as String : '',
+        mp3Url: (json['mp3_url'] is String) ? json['mp3_url'] as String : '',
       );
 }

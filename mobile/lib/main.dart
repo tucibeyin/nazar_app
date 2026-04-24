@@ -1,5 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'config/theme.dart';
 import 'screens/home_screen.dart';
 
 List<CameraDescription> cameras = [];
@@ -7,23 +10,23 @@ List<CameraDescription> cameras = [];
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   cameras = await availableCameras();
-  runApp(const NazarApp());
+  runApp(
+    ProviderScope(
+      child: NazarApp(cameras: cameras),
+    ),
+  );
 }
 
 class NazarApp extends StatelessWidget {
-  const NazarApp({super.key});
+  final List<CameraDescription> cameras;
+  const NazarApp({super.key, required this.cameras});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Nazar & Ferahlama',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1B4B3E),
-        ),
-        useMaterial3: true,
-      ),
+      theme: nazarTheme,
       home: HomeScreen(cameras: cameras),
     );
   }
