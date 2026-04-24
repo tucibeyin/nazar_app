@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -61,10 +62,14 @@ class ApiService {
         rethrow;
       } on SocketException {
         lastError = const ApiException('İnternet bağlantısı bulunamadı.');
+      } on TlsException {
+        lastError = const ApiException('Güvenli bağlantı kurulamadı.');
       } on HttpException {
         lastError = const ApiException('Sunucuya ulaşılamadı.');
       } on FormatException {
         lastError = const ApiException('Sunucu yanıtı okunamadı.');
+      } on TimeoutException {
+        lastError = const ApiException('Sunucu yanıt vermedi. Lütfen tekrar deneyin.');
       } catch (e, st) {
         AppLogger.error('fetchAyet unexpected error', e, st);
         lastError = ApiException('Beklenmedik hata: $e');
