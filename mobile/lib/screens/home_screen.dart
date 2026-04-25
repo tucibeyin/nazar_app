@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../config/app_constants.dart';
 import '../core/logger.dart';
@@ -52,6 +53,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   late final AnimationController _waveEnterCtrl;
   late final AnimationController _ambientCtrl;
   late final AnimationController _tesbihCtrl;
+  late final AnimationController _inkCtrl;
 
   @override
   void initState() {
@@ -63,6 +65,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     _ambientCtrl   = AnimationController(vsync: this, duration: kAmbientDuration)
       ..repeat(reverse: true);
     _tesbihCtrl    = AnimationController(vsync: this, duration: kTesbihDuration);
+    _inkCtrl       = AnimationController(vsync: this, duration: kInkSplashDuration);
 
     _cameraIndex = widget.cameras.indexWhere(
       (c) => c.lensDirection == CameraLensDirection.front,
@@ -223,6 +226,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Future<void> _shutterFlash() async {
+    _inkCtrl.forward(from: 0);
     await _shutterCtrl.forward();
     await _shutterCtrl.reverse();
   }
@@ -272,6 +276,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     _waveEnterCtrl.dispose();
     _ambientCtrl.dispose();
     _tesbihCtrl.dispose();
+    _inkCtrl.dispose();
     _cameraController?.dispose();
     super.dispose();
   }
@@ -282,16 +287,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == ThemeMode.dark;
+
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: isDark ? kDarkBg : kBg,
       body: Stack(
         children: [
-          // Katman 1: Parşömen arka plan + tezhip + köşe rozetleri
+          // Katman 1: Parşömen/Gece arka planı
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _ambientCtrl,
               builder: (_, __) => CustomPaint(
-                painter: ManuscriptBackgroundPainter(_ambientCtrl.value),
+                painter: ManuscriptBackgroundPainter(
+                  _ambientCtrl.value,
+                  isDark: isDark,
+                ),
               ),
             ),
           ),
@@ -303,7 +314,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               painter: MosqueSilhouettePainter(),
             ),
           ),
-          // Katman 3: İçerik
+          // Katman 3: Mürekkep sıçrama efekti (enstantane sırasında)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _inkCtrl,
+                builder: (_, __) {
+                  final v = _inkCtrl.value;
+                  if (v == 0) return const SizedBox.shrink();
+                  final radius = v * 1.8;
+                  final opacity = v < 0.5 ? v * 2 : (1 - v) * 2;
+                  return CustomPaint(
+                    painter: _InkSplashPainter(
+                      radius: radius,
+                      opacity: opacity.clamp(0.0, 1.0),
+                      isDark: isDark,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          // Katman 4: İçerik
           SafeArea(
             child: Column(
               children: [
@@ -339,6 +371,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   // ── Header ────────────────────────────────────────────────────────────────
 
   Widget _buildHeader() {
+    final isDark = ref.watch(themeProvider) == ThemeMode.dark;
+    final iconColor = isDark ? kGold : kGreen;
+    final subtitleColor = isDark ? kDarkSubtext : kGreen;
+
     return Column(
       children: [
         const CustomPaint(
@@ -354,41 +390,58 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 icon: Icon(
                   Icons.flip_camera_ios_rounded,
                   color: _viewState == AppViewState.camera
-                      ? kGreen
-                      : kGreen.withValues(alpha: 0.25),
+                      ? iconColor
+                      : iconColor.withValues(alpha: 0.25),
                   size: 26,
                 ),
               ),
-              const Expanded(
+              Expanded(
                 child: Column(
                   children: [
                     Text(
                       'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: GoogleFonts.amiri(
                         fontSize: 22,
                         color: kGold,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         height: 1.7,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       'Nazar  &  Ferahlama',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: GoogleFonts.cormorantGaramond(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: kGreen,
+                        color: subtitleColor,
                         letterSpacing: 2.2,
                       ),
                     ),
                   ],
                 ),
               ),
-              IconButton(
-                onPressed: _exitApp,
-                icon: const Icon(Icons.close_rounded, color: kGreen, size: 26),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () => ref.read(themeProvider.notifier).toggle(),
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                    icon: Icon(
+                      isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                      color: iconColor,
+                      size: 22,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _exitApp,
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                    icon: Icon(Icons.close_rounded, color: iconColor, size: 22),
+                  ),
+                ],
               ),
             ],
           ),
@@ -476,4 +529,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       ),
     );
   }
+}
+
+// ─── Mürekkep Sıçrama Painter ─────────────────────────────────────────────────
+
+class _InkSplashPainter extends CustomPainter {
+  final double radius;
+  final double opacity;
+  final bool isDark;
+
+  const _InkSplashPainter({
+    required this.radius,
+    required this.opacity,
+    required this.isDark,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final maxR = size.shortestSide * radius;
+    final color = isDark ? kGold : kGreen;
+
+    canvas.drawCircle(
+      Offset(cx, cy),
+      maxR,
+      Paint()
+        ..color = color.withValues(alpha: opacity * 0.18)
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawCircle(
+      Offset(cx, cy),
+      maxR,
+      Paint()
+        ..color = color.withValues(alpha: opacity * 0.45)
+        ..strokeWidth = 2.0
+        ..style = PaintingStyle.stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_InkSplashPainter old) =>
+      old.radius != radius || old.opacity != opacity;
 }

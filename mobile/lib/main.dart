@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'config/theme.dart';
+import 'providers/service_providers.dart';
 import 'screens/home_screen.dart';
 
 List<CameraDescription> cameras = [];
@@ -18,15 +19,15 @@ Future<void> main() async {
   );
 }
 
-class NazarApp extends StatefulWidget {
+class NazarApp extends ConsumerStatefulWidget {
   final List<CameraDescription> cameras;
   const NazarApp({super.key, required this.cameras});
 
   @override
-  State<NazarApp> createState() => _NazarAppState();
+  ConsumerState<NazarApp> createState() => _NazarAppState();
 }
 
-class _NazarAppState extends State<NazarApp> {
+class _NazarAppState extends ConsumerState<NazarApp> {
   late final GoRouter _router;
 
   @override
@@ -52,10 +53,13 @@ class _NazarAppState extends State<NazarApp> {
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeProvider);
     return MaterialApp.router(
       title: 'Nazar & Ferahlama',
       debugShowCheckedModeBanner: false,
       theme: nazarTheme,
+      darkTheme: nazarDarkTheme,
+      themeMode: themeMode,
       routerConfig: _router,
     );
   }

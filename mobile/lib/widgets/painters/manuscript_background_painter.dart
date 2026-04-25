@@ -6,13 +6,14 @@ import '../../config/app_constants.dart';
 
 class ManuscriptBackgroundPainter extends CustomPainter {
   final double t;
-  const ManuscriptBackgroundPainter(this.t);
+  final bool isDark;
+  const ManuscriptBackgroundPainter(this.t, {this.isDark = false});
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(
       Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()..color = kBg,
+      Paint()..color = isDark ? kDarkBg : kBg,
     );
     _drawStarGrid(canvas, size);
     _drawTezhipMarginBands(canvas, size);
@@ -20,15 +21,17 @@ class ManuscriptBackgroundPainter extends CustomPainter {
   }
 
   void _drawStarGrid(Canvas canvas, Size size) {
+    final base = isDark ? 0.055 : 0.038;
+    final accent = isDark ? kDarkSurface : kIndigo;
     final linePaint = Paint()
-      ..color = kGold.withValues(alpha: 0.038 + 0.008 * t)
+      ..color = kGold.withValues(alpha: base + 0.008 * t)
       ..strokeWidth = 0.6;
     final starPaint = Paint()
-      ..color = kGold.withValues(alpha: 0.065 + 0.015 * t)
+      ..color = kGold.withValues(alpha: (base + 0.027) + 0.015 * t)
       ..strokeWidth = 0.7
       ..style = PaintingStyle.stroke;
     final indigoPaint = Paint()
-      ..color = kIndigo.withValues(alpha: 0.035 + 0.008 * t)
+      ..color = accent.withValues(alpha: 0.035 + 0.008 * t)
       ..style = PaintingStyle.fill;
 
     const step = 54.0;
@@ -172,5 +175,5 @@ class ManuscriptBackgroundPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(ManuscriptBackgroundPainter old) => old.t != t;
+  bool shouldRepaint(ManuscriptBackgroundPainter old) => old.t != t || old.isDark != isDark;
 }

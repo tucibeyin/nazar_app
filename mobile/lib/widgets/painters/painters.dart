@@ -1,4 +1,5 @@
 export 'frame_corner_painter.dart';
+export 'medallion_frame_painter.dart';
 export 'hatime_painter.dart';
 export 'levha_border_painter.dart';
 export 'levha_header_painter.dart';

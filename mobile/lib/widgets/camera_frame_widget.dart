@@ -5,6 +5,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
 import '../config/app_constants.dart';
+import 'calligraphy_float_widget.dart';
 import 'painters/painters.dart';
 
 enum CameraFrameState { camera, analyzing, playing }
@@ -33,9 +34,6 @@ class CameraFrameWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ratio = cameraController.value.aspectRatio;
-    final portraitRatio = ratio < 1 ? ratio : 1 / ratio;
-
     final shutterA = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: shutterController, curve: Curves.easeInOut),
     );
@@ -53,52 +51,73 @@ class CameraFrameWidget extends StatelessWidget {
           Column(
             children: [
               CustomPaint(
-                size: Size(MediaQuery.of(context).size.width - kScreenPaddingH * 2, kMuqarnasH),
+                size: Size(
+                  MediaQuery.of(context).size.width - kScreenPaddingH * 2,
+                  kMuqarnasH,
+                ),
                 painter: const MukarnasPainter(isTop: true),
               ),
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.symmetric(
-                    vertical: BorderSide(color: kGold.withValues(alpha: 0.6), width: 1.5),
-                  ),
-                ),
-                child: ClipRect(
-                  child: AspectRatio(
-                    aspectRatio: portraitRatio,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        AnimatedSwitcher(
-                          duration: kSwitchDuration,
-                          transitionBuilder: _frameCrossfade,
-                          layoutBuilder: (cur, prev) => Stack(
-                            fit: StackFit.expand,
-                            children: [...prev, if (cur != null) cur],
-                          ),
-                          child: KeyedSubtree(
-                            key: ValueKey(frameState),
-                            child: _buildFrameContent(),
-                          ),
+              // ── Dairesel kamera alanı ───────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Circular clipped content
+                    SizedBox(
+                      width: kCameraFrameSize,
+                      height: kCameraFrameSize,
+                      child: ClipOval(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            AnimatedSwitcher(
+                              duration: kSwitchDuration,
+                              transitionBuilder: _frameCrossfade,
+                              layoutBuilder: (cur, prev) => Stack(
+                                fit: StackFit.expand,
+                                children: [...prev, if (cur != null) cur],
+                              ),
+                              child: KeyedSubtree(
+                                key: ValueKey(frameState),
+                                child: _buildFrameContent(),
+                              ),
+                            ),
+                            // Shutter flash overlay
+                            AnimatedBuilder(
+                              animation: shutterController,
+                              builder: (_, __) => shutterA.value > 0
+                                  ? IgnorePointer(
+                                      child: Opacity(
+                                        opacity: shutterA.value * 0.68,
+                                        child: Container(color: Colors.white),
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                          ],
                         ),
-                        const IgnorePointer(child: CustomPaint(painter: FrameCornerPainter())),
-                        AnimatedBuilder(
-                          animation: shutterController,
-                          builder: (_, __) => shutterA.value > 0
-                              ? IgnorePointer(
-                                  child: Opacity(
-                                    opacity: shutterA.value * 0.68,
-                                    child: Container(color: Colors.white),
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                    // Medallion border (slightly larger than the circle)
+                    AnimatedBuilder(
+                      animation: mysticController,
+                      builder: (_, __) => SizedBox(
+                        width: kCameraFrameSize + 26,
+                        height: kCameraFrameSize + 26,
+                        child: CustomPaint(
+                          painter: MedallionFramePainter(t: mysticController.value),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               CustomPaint(
-                size: Size(MediaQuery.of(context).size.width - kScreenPaddingH * 2, kMuqarnasH),
+                size: Size(
+                  MediaQuery.of(context).size.width - kScreenPaddingH * 2,
+                  kMuqarnasH,
+                ),
                 painter: const MukarnasPainter(isTop: false),
               ),
             ],
@@ -121,7 +140,9 @@ class CameraFrameWidget extends StatelessWidget {
         if (sigma > 0.3) {
           content = ImageFiltered(
             imageFilter: ui.ImageFilter.blur(
-              sigmaX: sigma, sigmaY: sigma, tileMode: TileMode.decal,
+              sigmaX: sigma,
+              sigmaY: sigma,
+              tileMode: TileMode.decal,
             ),
             child: content,
           );
@@ -142,7 +163,11 @@ class CameraFrameWidget extends StatelessWidget {
           children: [
             if (capturedPhotoBytes != null)
               ImageFiltered(
-                imageFilter: ui.ImageFilter.blur(sigmaX: 4.5, sigmaY: 4.5, tileMode: TileMode.decal),
+                imageFilter: ui.ImageFilter.blur(
+                  sigmaX: 4.5,
+                  sigmaY: 4.5,
+                  tileMode: TileMode.decal,
+                ),
                 child: Image.memory(capturedPhotoBytes!, fit: BoxFit.cover),
               )
             else
@@ -150,12 +175,15 @@ class CameraFrameWidget extends StatelessWidget {
             Container(color: kDarkBg.withValues(alpha: 0.68)),
             AnimatedBuilder(
               animation: mysticController,
-              builder: (_, __) => CustomPaint(painter: MysticPainter(mysticController.value)),
+              builder: (_, __) =>
+                  CustomPaint(painter: MysticPainter(mysticController.value)),
             ),
             AnimatedBuilder(
               animation: mysticController,
-              builder: (_, __) => CustomPaint(painter: ScanOverlayPainter(mysticController.value)),
+              builder: (_, __) =>
+                  CustomPaint(painter: ScanOverlayPainter(mysticController.value)),
             ),
+            const CalligraphyFloatWidget(),
           ],
         );
       case CameraFrameState.playing:

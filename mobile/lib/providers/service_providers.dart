@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../repositories/ayet_repository.dart';
@@ -43,7 +44,6 @@ class _ConnectivityNotifier extends StateNotifier<bool> {
   Future<void> _init() async {
     final initial = await _connectivity.checkConnectivity();
     if (mounted) state = _isOnline(initial);
-
     _sub = _connectivity.onConnectivityChanged.listen((results) {
       if (mounted) state = _isOnline(results);
     });
@@ -62,4 +62,19 @@ class _ConnectivityNotifier extends StateNotifier<bool> {
 /// `true` = çevrimiçi, `false` = çevrimdışı
 final connectivityProvider = StateNotifierProvider<_ConnectivityNotifier, bool>(
   (_) => _ConnectivityNotifier(),
+);
+
+// ─── Tema Provider ────────────────────────────────────────────────────────────
+
+class _ThemeNotifier extends StateNotifier<ThemeMode> {
+  _ThemeNotifier() : super(ThemeMode.light);
+
+  void toggle() => state =
+      state == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+
+  bool get isDark => state == ThemeMode.dark;
+}
+
+final themeProvider = StateNotifierProvider<_ThemeNotifier, ThemeMode>(
+  (_) => _ThemeNotifier(),
 );
