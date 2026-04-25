@@ -26,10 +26,13 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late final AnimationController _exitCtrl;
 
   bool _navigated = false;
+  late List<CameraDescription> _cameras;
 
   @override
   void initState() {
     super.initState();
+    _cameras = widget.cameras;
+
     _ambientCtrl    = AnimationController(vsync: this, duration: kAmbientDuration)
       ..repeat(reverse: true);
     _topBandCtrl    = AnimationController(vsync: this, duration: const Duration(milliseconds: 480));
@@ -39,7 +42,18 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     _mosqueCtrl     = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
     _exitCtrl       = AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
 
+    // If cameras weren't ready on cold start, retry while animation plays.
+    if (_cameras.isEmpty) _retryCameras();
+
     _playEntranceThenExit();
+  }
+
+  Future<void> _retryCameras() async {
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
+    try {
+      _cameras = await availableCameras();
+    } catch (_) {}
   }
 
   Future<void> _playEntranceThenExit() async {
@@ -67,7 +81,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     if (!mounted) return;
     await _exitCtrl.forward();
     if (mounted) {
-      context.go('/home', extra: widget.cameras);
+      context.go('/home', extra: _cameras);
     }
   }
 

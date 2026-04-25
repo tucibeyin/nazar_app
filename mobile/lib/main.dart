@@ -10,9 +10,13 @@ import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Await cameras here — before runApp — so the plugin channel
-  // is fully resolved before the Flutter engine attaches to a scene window.
-  final cameras = await availableCameras();
+  // Best-effort camera discovery before runApp. On cold start the plugin
+  // channel may not yet be registered; SplashScreen retries if the list
+  // comes back empty.
+  List<CameraDescription> cameras = [];
+  try {
+    cameras = await availableCameras();
+  } catch (_) {}
   runApp(ProviderScope(child: NazarApp(cameras: cameras)));
 }
 
