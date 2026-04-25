@@ -9,8 +9,8 @@ import '../config/app_constants.dart';
 import '../widgets/painters/painters.dart';
 
 class SplashScreen extends StatefulWidget {
-  final Future<List<CameraDescription>> camerasFuture;
-  const SplashScreen({super.key, required this.camerasFuture});
+  final List<CameraDescription> cameras;
+  const SplashScreen({super.key, required this.cameras});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -25,14 +25,12 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late final AnimationController _mosqueCtrl;
   late final AnimationController _exitCtrl;
 
-  List<CameraDescription>? _cameras;
   bool _navigated = false;
-  bool _minTimeElapsed = false;
 
   @override
   void initState() {
     super.initState();
-    _ambientCtrl = AnimationController(vsync: this, duration: kAmbientDuration)
+    _ambientCtrl    = AnimationController(vsync: this, duration: kAmbientDuration)
       ..repeat(reverse: true);
     _topBandCtrl    = AnimationController(vsync: this, duration: const Duration(milliseconds: 480));
     _bottomBandCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 480));
@@ -41,51 +39,35 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     _mosqueCtrl     = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
     _exitCtrl       = AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
 
-    _playEntrance();
-
-    widget.camerasFuture.then((cameras) {
-      if (mounted) {
-        _cameras = cameras;
-        _checkReady();
-      }
-    });
-
-    Future.delayed(const Duration(milliseconds: 1900), () {
-      if (mounted) {
-        _minTimeElapsed = true;
-        _checkReady();
-      }
-    });
+    _playEntranceThenExit();
   }
 
-  Future<void> _playEntrance() async {
-    // Bands appear first — matches LaunchScreen bands
+  Future<void> _playEntranceThenExit() async {
+    // Bands slide in first — continuous with LaunchScreen bands
     _topBandCtrl.forward();
     _bottomBandCtrl.forward();
     await Future.delayed(const Duration(milliseconds: 220));
+    if (!mounted) return;
 
-    // Central bismillah scales + fades in
+    // Bismillah scales + fades in
     await _centralCtrl.forward();
+    if (!mounted) return;
 
-    // Subtitle and mosque
+    // Subtitle, mosque, and loading dots
     _subtitleCtrl.forward();
     _mosqueCtrl.forward();
-  }
 
-  void _checkReady() {
-    if (_cameras != null && _minTimeElapsed && !_navigated) {
-      _navigated = true;
-      _exit();
-    }
-  }
+    // Minimum display time from now
+    await Future.delayed(const Duration(milliseconds: 1200));
+    if (!mounted || _navigated) return;
+    _navigated = true;
 
-  Future<void> _exit() async {
-    // Brief pause, then dissolve out
+    // Brief pause, dissolve, then navigate
     await Future.delayed(const Duration(milliseconds: 160));
     if (!mounted) return;
     await _exitCtrl.forward();
     if (mounted) {
-      context.go('/home', extra: _cameras ?? []);
+      context.go('/home', extra: widget.cameras);
     }
   }
 
@@ -103,22 +85,20 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
-    // Entrance curves
     final topBandCurve    = CurvedAnimation(parent: _topBandCtrl,    curve: Curves.easeOutCubic);
     final bottomBandCurve = CurvedAnimation(parent: _bottomBandCtrl, curve: Curves.easeOutCubic);
-    final centralScale    = Tween<double>(begin: 0.70, end: 1.0)
+    final centralScale = Tween<double>(begin: 0.70, end: 1.0)
         .animate(CurvedAnimation(parent: _centralCtrl, curve: Curves.easeOutBack));
     final centralOpacity  = CurvedAnimation(parent: _centralCtrl,  curve: Curves.easeOut);
     final subtitleOpacity = CurvedAnimation(parent: _subtitleCtrl, curve: Curves.easeOut);
     final mosqueOpacity   = CurvedAnimation(parent: _mosqueCtrl,   curve: Curves.easeOut);
-    // Exit: fade the whole screen to parchment
-    final exitOpacity = CurvedAnimation(parent: _exitCtrl, curve: Curves.easeIn);
+    final exitOpacity     = CurvedAnimation(parent: _exitCtrl,     curve: Curves.easeIn);
 
     return Scaffold(
       backgroundColor: kBg,
       body: Stack(
         children: [
-          // Layer 1: animated manuscript background
+          // Layer 1: animated parchment background
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _ambientCtrl,
@@ -128,7 +108,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
             ),
           ),
 
-          // Layer 2: mosque silhouette fades in from bottom
+          // Layer 2: mosque silhouette fades in
           Positioned(
             bottom: 0, left: 0, right: 0,
             child: AnimatedBuilder(
@@ -192,7 +172,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Ornamental hatim above bismillah
+                  // Ornamental hatim
                   AnimatedBuilder(
                     animation: centralOpacity,
                     builder: (_, __) => Opacity(
@@ -296,16 +276,14 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
             ),
           ),
 
-          // Layer 6: exit fade overlay (parchment dissolve)
+          // Layer 6: parchment dissolve on exit
           AnimatedBuilder(
             animation: exitOpacity,
             builder: (_, __) {
               final v = exitOpacity.value;
               if (v == 0) return const SizedBox.shrink();
               return IgnorePointer(
-                child: Container(
-                  color: kBg.withValues(alpha: v),
-                ),
+                child: Container(color: kBg.withValues(alpha: v)),
               );
             },
           ),

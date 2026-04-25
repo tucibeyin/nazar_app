@@ -10,16 +10,15 @@ import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Start camera discovery but do NOT await — SplashScreen handles it.
-  // This lets Flutter render its first frame immediately, dismissing
-  // the native LaunchScreen without waiting for camera initialization.
-  final camerasFuture = availableCameras();
-  runApp(ProviderScope(child: NazarApp(camerasFuture: camerasFuture)));
+  // Await cameras here — before runApp — so the plugin channel
+  // is fully resolved before the Flutter engine attaches to a scene window.
+  final cameras = await availableCameras();
+  runApp(ProviderScope(child: NazarApp(cameras: cameras)));
 }
 
 class NazarApp extends ConsumerStatefulWidget {
-  final Future<List<CameraDescription>> camerasFuture;
-  const NazarApp({super.key, required this.camerasFuture});
+  final List<CameraDescription> cameras;
+  const NazarApp({super.key, required this.cameras});
 
   @override
   ConsumerState<NazarApp> createState() => _NazarAppState();
@@ -37,7 +36,7 @@ class _NazarAppState extends ConsumerState<NazarApp> {
       routes: [
         GoRoute(
           path: '/splash',
-          builder: (_, __) => SplashScreen(camerasFuture: widget.camerasFuture),
+          builder: (_, __) => SplashScreen(cameras: widget.cameras),
         ),
         GoRoute(
           path: '/home',
