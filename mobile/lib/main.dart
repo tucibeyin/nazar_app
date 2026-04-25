@@ -6,22 +6,20 @@ import 'package:go_router/go_router.dart';
 import 'config/theme.dart';
 import 'providers/service_providers.dart';
 import 'screens/home_screen.dart';
-
-List<CameraDescription> cameras = [];
+import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  cameras = await availableCameras();
-  runApp(
-    ProviderScope(
-      child: NazarApp(cameras: cameras),
-    ),
-  );
+  // Start camera discovery but do NOT await — SplashScreen handles it.
+  // This lets Flutter render its first frame immediately, dismissing
+  // the native LaunchScreen without waiting for camera initialization.
+  final camerasFuture = availableCameras();
+  runApp(ProviderScope(child: NazarApp(camerasFuture: camerasFuture)));
 }
 
 class NazarApp extends ConsumerStatefulWidget {
-  final List<CameraDescription> cameras;
-  const NazarApp({super.key, required this.cameras});
+  final Future<List<CameraDescription>> camerasFuture;
+  const NazarApp({super.key, required this.camerasFuture});
 
   @override
   ConsumerState<NazarApp> createState() => _NazarAppState();
@@ -34,12 +32,28 @@ class _NazarAppState extends ConsumerState<NazarApp> {
   void initState() {
     super.initState();
     _router = GoRouter(
+      initialLocation: '/splash',
       debugLogDiagnostics: false,
       routes: [
         GoRoute(
-          path: '/',
-          name: 'home',
-          builder: (_, __) => HomeScreen(cameras: widget.cameras),
+          path: '/splash',
+          builder: (_, __) => SplashScreen(camerasFuture: widget.camerasFuture),
+        ),
+        GoRoute(
+          path: '/home',
+          pageBuilder: (_, state) {
+            final cameras = state.extra as List<CameraDescription>? ?? [];
+            return CustomTransitionPage<void>(
+              key: state.pageKey,
+              child: HomeScreen(cameras: cameras),
+              transitionDuration: const Duration(milliseconds: 600),
+              reverseTransitionDuration: const Duration(milliseconds: 300),
+              transitionsBuilder: (_, animation, __, child) => FadeTransition(
+                opacity: CurvedAnimation(parent: animation, curve: Curves.easeIn),
+                child: child,
+              ),
+            );
+          },
         ),
       ],
     );
