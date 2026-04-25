@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -69,13 +70,14 @@ class TimingMiddleware(BaseHTTPMiddleware):
 _API_KEY = os.getenv("API_KEY", "")
 
 _PUBLIC_PATHS = {"/health"}
+_PUBLIC_PREFIXES = ("/media/",)
 
 
 class ApiKeyMiddleware(BaseHTTPMiddleware):
     """X-API-Key header doğrulaması. API_KEY env boşsa devre dışı."""
 
     async def dispatch(self, request: Request, call_next):
-        if not _API_KEY or request.url.path in _PUBLIC_PATHS:
+        if not _API_KEY or request.url.path in _PUBLIC_PATHS or request.url.path.startswith(_PUBLIC_PREFIXES):
             return await call_next(request)
         key = request.headers.get("X-API-Key", "")
         if key != _API_KEY:
@@ -157,3 +159,10 @@ async def get_ayet(request: Request, hash_sayisi: int) -> AyetResponse:
         meal=str(raw.get("meal", "")),
         mp3_url=str(raw.get("mp3_url", "")),
     )
+
+
+# ── Statik Medya ──────────────────────────────────────────────────────────────
+# MP3 dosyaları /media/quran_audio/ altında, auth gerektirmez (_PUBLIC_PREFIXES).
+_media_path = Path(__file__).parent / "media"
+if _media_path.exists():
+    app.mount("/media", StaticFiles(directory=str(_media_path)), name="media")
