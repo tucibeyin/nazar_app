@@ -156,7 +156,17 @@ class CameraFrameWidget extends StatelessWidget {
   Widget _buildFrameContent() {
     switch (frameState) {
       case CameraFrameState.camera:
-        return CameraPreview(cameraController);
+        // StackFit.expand gives tight square constraints which squishes CameraPreview.
+        // OverflowBox frees the height so CameraPreview uses its natural portrait ratio;
+        // the overflow is clipped by the surrounding ClipOval.
+        final aspect = cameraController.value.isInitialized
+            ? cameraController.value.aspectRatio
+            : 4.0 / 3.0;
+        return OverflowBox(
+          alignment: Alignment.center,
+          maxHeight: kCameraFrameSize * aspect,
+          child: CameraPreview(cameraController),
+        );
       case CameraFrameState.analyzing:
         return Stack(
           fit: StackFit.expand,
