@@ -156,16 +156,7 @@ class CameraFrameWidget extends StatelessWidget {
   Widget _buildFrameContent() {
     switch (frameState) {
       case CameraFrameState.camera:
-        final ratio = cameraController.value.isInitialized
-            ? cameraController.value.aspectRatio
-            : 1.0;
-        // CameraPreview uses AspectRatio internally; in portrait mode it renders
-        // narrower than the square container (pillarboxed). Scale up to cover.
-        final scale = ratio > 1.0 ? ratio : 1.0 / ratio;
-        return Transform.scale(
-          scale: scale,
-          child: CameraPreview(cameraController),
-        );
+        return CameraPreview(cameraController);
       case CameraFrameState.analyzing:
         return Stack(
           fit: StackFit.expand,
