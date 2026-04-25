@@ -15,6 +15,23 @@
                     </layoutGuides>
                     <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left"
+                                   text="بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ"
+                                   textAlignment="center" lineBreakMode="wordWrap" numberOfLines="0"
+                                   baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO"
+                                   translatesAutoresizingMaskIntoConstraints="NO" id="bis-lbl-01">
+                                <fontDescription key="fontDescription" type="system" pointSize="26"/>
+                                <color key="textColor" red="0.78823529411764703" green="0.65882352941176471" blue="0.29803921568627451" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                        </subviews>
+                        <constraints>
+                            <constraint firstItem="bis-lbl-01" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="cnst-cx-01"/>
+                            <constraint firstItem="bis-lbl-01" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="cnst-cy-01"/>
+                            <constraint firstItem="bis-lbl-01" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" constant="32" id="cnst-lead-01"/>
+                            <constraint firstItem="Ze5-6b-2t3" firstAttribute="trailing" secondItem="bis-lbl-01" secondAttribute="trailing" constant="32" id="cnst-trail-01"/>
+                        </constraints>
                         <color key="backgroundColor" red="0.95294117647058823" green="0.90980392156862744" blue="0.80784313725490196" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                     </view>
                 </viewController>

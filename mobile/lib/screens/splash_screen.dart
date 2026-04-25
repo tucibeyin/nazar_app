@@ -9,8 +9,7 @@ import '../config/app_constants.dart';
 import '../widgets/painters/painters.dart';
 
 class SplashScreen extends StatefulWidget {
-  final List<CameraDescription> cameras;
-  const SplashScreen({super.key, required this.cameras});
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -25,58 +24,55 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late final AnimationController _mosqueCtrl;
   late final AnimationController _exitCtrl;
 
+  List<CameraDescription> _cameras = [];
   bool _navigated = false;
-  late List<CameraDescription> _cameras;
 
   @override
   void initState() {
     super.initState();
-    _cameras = widget.cameras;
 
     _ambientCtrl    = AnimationController(vsync: this, duration: kAmbientDuration)
       ..repeat(reverse: true);
     _topBandCtrl    = AnimationController(vsync: this, duration: const Duration(milliseconds: 480));
     _bottomBandCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 480));
-    _centralCtrl    = AnimationController(vsync: this, duration: const Duration(milliseconds: 720));
+    // Bismillah starts fully visible — matches the static LaunchScreen frame exactly.
+    _centralCtrl    = AnimationController(vsync: this, duration: const Duration(milliseconds: 720), value: 1.0);
     _subtitleCtrl   = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
     _mosqueCtrl     = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
     _exitCtrl       = AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
 
-    // If cameras weren't ready on cold start, retry while animation plays.
-    if (_cameras.isEmpty) _retryCameras();
-
+    _loadCameras();
     _playEntranceThenExit();
   }
 
-  Future<void> _retryCameras() async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
+  Future<void> _loadCameras() async {
     try {
       _cameras = await availableCameras();
     } catch (_) {}
+    if (_cameras.isEmpty && mounted) {
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (!mounted) return;
+      try {
+        _cameras = await availableCameras();
+      } catch (_) {}
+    }
   }
 
   Future<void> _playEntranceThenExit() async {
-    // Bands slide in first — continuous with LaunchScreen bands
+    // Bands slide in from edges; bismillah already visible = zero jump from LaunchScreen.
     _topBandCtrl.forward();
     _bottomBandCtrl.forward();
-    await Future.delayed(const Duration(milliseconds: 220));
+    await Future.delayed(const Duration(milliseconds: 320));
     if (!mounted) return;
 
-    // Bismillah scales + fades in
-    await _centralCtrl.forward();
-    if (!mounted) return;
-
-    // Subtitle, mosque, and loading dots
+    // Subtitle, mosque silhouette, loading dots
     _subtitleCtrl.forward();
     _mosqueCtrl.forward();
 
-    // Minimum display time from now
-    await Future.delayed(const Duration(milliseconds: 1200));
+    await Future.delayed(const Duration(milliseconds: 1400));
     if (!mounted || _navigated) return;
     _navigated = true;
 
-    // Brief pause, dissolve, then navigate
     await Future.delayed(const Duration(milliseconds: 160));
     if (!mounted) return;
     await _exitCtrl.forward();
@@ -101,7 +97,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   Widget build(BuildContext context) {
     final topBandCurve    = CurvedAnimation(parent: _topBandCtrl,    curve: Curves.easeOutCubic);
     final bottomBandCurve = CurvedAnimation(parent: _bottomBandCtrl, curve: Curves.easeOutCubic);
-    final centralScale = Tween<double>(begin: 0.70, end: 1.0)
+    final centralScale    = Tween<double>(begin: 0.70, end: 1.0)
         .animate(CurvedAnimation(parent: _centralCtrl, curve: Curves.easeOutBack));
     final centralOpacity  = CurvedAnimation(parent: _centralCtrl,  curve: Curves.easeOut);
     final subtitleOpacity = CurvedAnimation(parent: _subtitleCtrl, curve: Curves.easeOut);
@@ -179,7 +175,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
             ),
           ),
 
-          // Layer 5: central content
+          // Layer 5: central content — bismillah pre-visible from frame 0
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: kScreenPaddingH + 12),
             child: Center(
@@ -199,7 +195,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   ),
                   const SizedBox(height: 22),
 
-                  // Bismillah — scale + fade
+                  // Bismillah
                   AnimatedBuilder(
                     animation: _centralCtrl,
                     builder: (_, __) => Transform.scale(

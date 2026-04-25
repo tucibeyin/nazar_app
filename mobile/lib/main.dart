@@ -1,7 +1,7 @@
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:camera/camera.dart';
 
 import 'config/theme.dart';
 import 'providers/service_providers.dart';
@@ -10,19 +10,13 @@ import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Best-effort camera discovery before runApp. On cold start the plugin
-  // channel may not yet be registered; SplashScreen retries if the list
-  // comes back empty.
-  List<CameraDescription> cameras = [];
-  try {
-    cameras = await availableCameras();
-  } catch (_) {}
-  runApp(ProviderScope(child: NazarApp(cameras: cameras)));
+  // runApp immediately — no blocking I/O before first frame.
+  // SplashScreen loads cameras in the background while animations play.
+  runApp(const ProviderScope(child: NazarApp()));
 }
 
 class NazarApp extends ConsumerStatefulWidget {
-  final List<CameraDescription> cameras;
-  const NazarApp({super.key, required this.cameras});
+  const NazarApp({super.key});
 
   @override
   ConsumerState<NazarApp> createState() => _NazarAppState();
@@ -40,7 +34,7 @@ class _NazarAppState extends ConsumerState<NazarApp> {
       routes: [
         GoRoute(
           path: '/splash',
-          builder: (_, __) => SplashScreen(cameras: widget.cameras),
+          builder: (_, __) => const SplashScreen(),
         ),
         GoRoute(
           path: '/home',

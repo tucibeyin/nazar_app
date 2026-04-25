@@ -4,15 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nazar_app/main.dart';
 
 void main() {
-  testWidgets('NazarApp kamera listesi boşken başlatılabilir', (tester) async {
+  testWidgets('NazarApp başlatılabilir', (tester) async {
     await tester.pumpWidget(
-      const ProviderScope(
-        child: NazarApp(cameras: []),
-      ),
+      const ProviderScope(child: NazarApp()),
     );
     await tester.pump();
     expect(find.byType(MaterialApp), findsOneWidget);
-    // Drain splash timers (220ms entrance delay + 720ms central + 1200ms min + exit delays)
+    // Drain splash timers
     await tester.pump(const Duration(seconds: 3));
     await tester.pump(const Duration(milliseconds: 200));
   });
