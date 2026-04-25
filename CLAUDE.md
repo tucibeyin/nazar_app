@@ -61,6 +61,21 @@ camera → (shutter flash) → analyzing → (hash + API fetch) → playing → 
 - `HashUtil.fromBytes`: SHA-256 → ilk 8 bayt → int64 → abs()
 - deploy.sh: credentials **asla** kodda olmaz, env var kullanılır
 
+## Gizli Ayarlar (dart-define)
+
+API key ve base URL `--dart-define-from-file` ile enjekte edilir:
+
+```
+mobile/dart_defines.json        ← git-ignored, gerçek değerler
+mobile/dart_defines.example.json ← şablon, repo'da
+```
+
+İlk kurulum:
+```bash
+cp mobile/dart_defines.example.json mobile/dart_defines.json
+# dart_defines.json içine API_KEY değerini gir
+```
+
 ## Komutlar
 
 ```bash
@@ -69,11 +84,17 @@ pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8000
 pytest tests/ -v
 
-# Flutter
-cd mobile
-flutter pub get
-flutter analyze
-flutter test
-flutter build apk --release
+# Flutter — Makefile kısayolları (proje kökünden)
+make run           # debug
+make run-profile   # profiling
+make build-apk     # Android release
+make build-ipa     # iOS release
+make clean         # flutter clean + pub get
+make test          # flutter test
+make analyze       # flutter analyze
+
+# Flutter — doğrudan (mobile/ içinden)
+flutter run --dart-define-from-file=dart_defines.json
+flutter build ipa --release --dart-define-from-file=dart_defines.json
 ./deploy.sh <build_no>   # APPLE_ID ve APP_SPECIFIC_PASS env var gerekli
 ```
