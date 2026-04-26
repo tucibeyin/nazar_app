@@ -148,6 +148,7 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
     return Scaffold(
       backgroundColor: kBg,
       floatingActionButton: _buildFAB(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       body: Stack(
         children: [
           Positioned.fill(
