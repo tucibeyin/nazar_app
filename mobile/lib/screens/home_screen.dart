@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../config/app_constants.dart';
@@ -35,6 +36,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStateMixin {
+  // ── Scaffold key (drawer açmak için) ──────────────────────────────────────
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+
   // ── Kamera ────────────────────────────────────────────────────────────────
   CameraController? _cameraController;
   int _cameraIndex = 0;
@@ -291,7 +295,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final isDark = themeMode == ThemeMode.dark;
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: isDark ? kDarkBg : kBg,
+      drawer: _buildDrawer(isDark),
       body: Stack(
         children: [
           // Katman 1: Parşömen/Gece arka planı
@@ -426,6 +432,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
+                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                    icon: Icon(Icons.menu_rounded, color: iconColor, size: 22),
+                  ),
+                  IconButton(
                     onPressed: () => ref.read(themeProvider.notifier).toggle(),
                     padding: const EdgeInsets.all(4),
                     constraints: const BoxConstraints(),
@@ -454,6 +466,64 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           ),
         ),
       ],
+    );
+  }
+
+  // ── Drawer ────────────────────────────────────────────────────────────────
+
+  Widget _buildDrawer(bool isDark) {
+    final bg = isDark ? kDarkBg : kBg;
+    final textColor = isDark ? kGold : kGreen;
+    final subColor = isDark ? kDarkSubtext : kGreen.withValues(alpha: 0.6);
+
+    return Drawer(
+      backgroundColor: bg,
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+              child: Text(
+                'Nazar & Ferahlama',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: CustomPaint(
+                size: Size(double.infinity, 12),
+                painter: UnvanDividerPainter(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: Icon(Icons.auto_stories_rounded, color: textColor),
+              title: Text(
+                'Hatim İndir',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+              subtitle: Text(
+                'Kaldığın yerden devam et',
+                style: TextStyle(fontSize: 12, color: subColor),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.push('/hatim');
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 

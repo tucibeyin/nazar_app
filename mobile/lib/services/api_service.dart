@@ -9,6 +9,7 @@ import '../config/api_config.dart';
 import '../config/app_constants.dart';
 import '../core/logger.dart';
 import '../models/ayet.dart';
+import '../models/hatim_ayet.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -84,6 +85,32 @@ class ApiService {
     }
 
     throw lastError ?? const ApiException('Bilinmeyen ağ hatası.');
+  }
+
+  /// Verilen index'teki hatim ayetini getirir. Tek deneme, retry yok.
+  Future<HatimAyet> fetchHatimAyet(int index) async {
+    final uri = Uri.parse(ApiConfig.hatimEndpoint(index));
+    final headers = <String, String>{
+      'Accept': 'application/json',
+      if (ApiConfig.apiKey.isNotEmpty) 'X-API-Key': ApiConfig.apiKey,
+    };
+    try {
+      AppLogger.info('fetchHatimAyet index=$index');
+      final response = await _client.get(uri, headers: headers).timeout(kApiTimeout);
+      if (response.statusCode == 200) {
+        return HatimAyet.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      }
+      throw ApiException('Hatim API hatası', statusCode: response.statusCode);
+    } on ApiException {
+      rethrow;
+    } on SocketException {
+      throw const ApiException('İnternet bağlantısı bulunamadı.');
+    } on TimeoutException {
+      throw const ApiException('Sunucu yanıt vermedi.');
+    } catch (e, st) {
+      AppLogger.error('fetchHatimAyet unexpected error', e, st);
+      throw ApiException('Beklenmedik hata: $e');
+    }
   }
 
   void dispose() => _client.close();

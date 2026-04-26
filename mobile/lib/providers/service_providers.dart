@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../repositories/ayet_repository.dart';
 import '../services/api_service.dart';
@@ -77,4 +78,35 @@ class _ThemeNotifier extends StateNotifier<ThemeMode> {
 
 final themeProvider = StateNotifierProvider<_ThemeNotifier, ThemeMode>(
   (_) => _ThemeNotifier(),
+);
+
+// ─── Hatim İlerleme Provider ──────────────────────────────────────────────────
+
+class HatimProgressNotifier extends StateNotifier<int> {
+  static const _key = 'hatim_index';
+
+  HatimProgressNotifier() : super(0) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) state = prefs.getInt(_key) ?? 0;
+  }
+
+  Future<void> advance(int total) async {
+    state = (state + 1) % total;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_key, state);
+  }
+
+  Future<void> reset() async {
+    state = 0;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_key, 0);
+  }
+}
+
+final hatimProgressProvider = StateNotifierProvider<HatimProgressNotifier, int>(
+  (_) => HatimProgressNotifier(),
 );

@@ -120,6 +120,11 @@ class AyetResponse(BaseModel):
         return v
 
 
+class HatimAyetResponse(AyetResponse):
+    index: int   # AYETLER içindeki gerçek 0-tabanlı konum
+    total: int   # toplam ayet sayısı
+
+
 class HealthResponse(BaseModel):
     status: str
     ayet_count: int
@@ -153,6 +158,27 @@ async def get_ayet(request: Request, hash_sayisi: int) -> AyetResponse:
     log.info("ayet_served", index=secilen_index, remote=get_remote_address(request))
 
     return AyetResponse(
+        id=int(raw.get("id", 0) or 0),
+        sure_isim=str(raw.get("sure_isim", "")),
+        arapca=str(raw.get("arapca", "")),
+        meal=str(raw.get("meal", "")),
+        mp3_url=str(raw.get("mp3_url", "")),
+    )
+
+
+@app.get("/api/hatim/{index}", response_model=HatimAyetResponse, tags=["hatim"])
+@limiter.limit(os.getenv("RATE_LIMIT", "30/minute"))
+async def get_hatim_ayet(request: Request, index: int) -> HatimAyetResponse:
+    if index < 0:
+        raise HTTPException(status_code=422, detail="Index negatif olamaz.")
+    if not AYETLER:
+        raise HTTPException(status_code=503, detail="Ayet veritabanı boş.")
+    actual = index % len(AYETLER)
+    raw = AYETLER[actual]
+    log.info("hatim_ayet_served", index=actual, remote=get_remote_address(request))
+    return HatimAyetResponse(
+        index=actual,
+        total=len(AYETLER),
         id=int(raw.get("id", 0) or 0),
         sure_isim=str(raw.get("sure_isim", "")),
         arapca=str(raw.get("arapca", "")),

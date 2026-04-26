@@ -11,5 +11,6 @@ class ApiConfig {
   static const String apiKey = String.fromEnvironment('API_KEY', defaultValue: '');
 
   static String nazarEndpoint(int hashInt) => '$baseUrl/api/nazar/$hashInt';
+  static String hatimEndpoint(int index) => '$baseUrl/api/hatim/$index';
   static String audioUrl(String mp3Path) => '$baseUrl$mp3Path';
 }
