@@ -36,6 +36,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
   _HatimState _hatimState = _HatimState.idle;
   HatimAyet? _current;
   String? _errorMsg;
+  bool _advancing = false;
 
   @override
   void initState() {
@@ -72,9 +73,15 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
   }
 
   Future<void> _advance() async {
-    final total = _current?.total ?? 6236;
-    await ref.read(hatimProgressProvider.notifier).advance(total);
-    _playFromIndex(ref.read(hatimProgressProvider));
+    if (_advancing) return;
+    _advancing = true;
+    try {
+      final total = _current?.total ?? 6236;
+      await ref.read(hatimProgressProvider.notifier).advance(total);
+      await _playFromIndex(ref.read(hatimProgressProvider));
+    } finally {
+      _advancing = false;
+    }
   }
 
   Future<void> _onPlayPause() async {

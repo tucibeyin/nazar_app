@@ -46,6 +46,7 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
   List<_Entry> _playlist = [];
   int _playIndex = 0;
   String? _errorMsg;
+  bool _advancing = false; // re-entrant advance koruması
 
   @override
   void initState() {
@@ -94,10 +95,13 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
   }
 
   void _advancePlayback() {
+    if (_advancing) return;
+    _advancing = true;
     if (_playIndex + 1 < _playlist.length) {
       setState(() => _playIndex++);
-      _audio.playFromPath(_playlist[_playIndex].ayet.mp3Url);
+      _audio.playFromPath(_playlist[_playIndex].ayet.mp3Url).whenComplete(() => _advancing = false);
     } else {
+      _advancing = false;
       setState(() { _playState = _PlayState.idle; _playlist = []; _playIndex = 0; });
     }
   }
