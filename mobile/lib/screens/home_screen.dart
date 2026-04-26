@@ -428,32 +428,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   ],
                 ),
               ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                    padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(),
-                    icon: Icon(Icons.menu_rounded, color: iconColor, size: 22),
-                  ),
-                  IconButton(
-                    onPressed: () => ref.read(themeProvider.notifier).toggle(),
-                    padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(),
-                    icon: Icon(
-                      isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                      color: iconColor,
-                      size: 22,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _exitApp,
-                    padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(),
-                    icon: Icon(Icons.close_rounded, color: iconColor, size: 22),
-                  ),
-                ],
+              IconButton(
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                padding: const EdgeInsets.all(4),
+                constraints: const BoxConstraints(),
+                icon: Icon(Icons.menu_rounded, color: iconColor, size: 26),
               ),
             ],
           ),
@@ -520,6 +499,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 Navigator.of(context).pop();
                 context.push('/hatim');
               },
+            ),
+            const Spacer(),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: CustomPaint(
+                size: Size(double.infinity, 12),
+                painter: UnvanDividerPainter(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+              child: Row(
+                children: [
+                  _DrawerIconBtn(
+                    icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                    label: isDark ? 'Gündüz' : 'Gece',
+                    color: textColor,
+                    onTap: () => ref.read(themeProvider.notifier).toggle(),
+                  ),
+                  const SizedBox(width: 8),
+                  _DrawerIconBtn(
+                    icon: Icons.power_settings_new_rounded,
+                    label: 'Kapat',
+                    color: Colors.red.shade400,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      _exitApp();
+                    },
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -594,6 +604,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       letterSpacing: 0.4,
                     ),
                   ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Drawer icon button ───────────────────────────────────────────────────────
+
+class _DrawerIconBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _DrawerIconBtn({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 12,
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
           ),
         ),
       ),
