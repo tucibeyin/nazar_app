@@ -82,7 +82,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       if (mounted) setState(() => _isPlaying = s == PlayerState.playing);
     });
     audio.completionStream.listen((_) {
-      if (mounted) _transitionToCamera();
+      if (mounted && _viewState == AppViewState.playing) _transitionToCamera();
     });
   }
 

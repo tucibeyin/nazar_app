@@ -95,11 +95,12 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
   }
 
   void _advancePlayback() {
-    if (_advancing) return;
+    if (_advancing || _playState == _PlayState.idle) return;
     _advancing = true;
     if (_playIndex + 1 < _playlist.length) {
       setState(() => _playIndex++);
-      _audio.playFromPath(_playlist[_playIndex].ayet.mp3Url).whenComplete(() => _advancing = false);
+      _audio.playFromPath(_playlist[_playIndex].ayet.mp3Url)
+          .whenComplete(() => _advancing = false);
     } else {
       _advancing = false;
       setState(() { _playState = _PlayState.idle; _playlist = []; _playIndex = 0; });
@@ -123,8 +124,9 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
   }
 
   Future<void> _stopPlayback() async {
-    await _audio.stop();
+    // State'i önce idle yap — stop() completion tetiklerse guard devrede olsun
     if (mounted) setState(() { _playState = _PlayState.idle; _playlist = []; _playIndex = 0; });
+    await _audio.stop();
   }
 
   // ── Paket silme — playlist ile tam senkronizasyon ─────────────────────────

@@ -8,9 +8,8 @@ class AudioService {
 
   Stream<PlayerState> get stateStream => _player.onPlayerStateChanged;
 
-  // onPlayerComplete yerine onPlayerStateChanged.completed kullanıyoruz.
-  // iOS'ta stop() çağrısı onPlayerComplete'i yanlışlıkla tetikleyebilir;
-  // PlayerState.completed ise yalnızca doğal bitiş için set edilir.
+  // onPlayerStateChanged.completed kullanıyoruz çünkü stop() çağrısı
+  // PlayerState.stopped üretir; PlayerState.completed yalnızca doğal bitişte.
   late final Stream<void> completionStream = _player.onPlayerStateChanged
       .where((s) => s == PlayerState.completed)
       .map((_) {});
@@ -25,7 +24,10 @@ class AudioService {
     try {
       final url = ApiConfig.audioUrl(mp3Path);
       AppLogger.info('AudioService.play');
-      await _player.stop();
+      // stop() KASITLI olarak KALDIRILDI.
+      // play() iOS'ta AVPlayer.replaceCurrentItem kullanır ve geçişi
+      // kendi yönetir. Önceden stop() çağırmak PlayerState.completed
+      // olayını spurious olarak tetikleyip cascade'e yol açıyordu.
       await _player.play(UrlSource(url));
     } catch (e, st) {
       AppLogger.error('AudioService.play failed', e, st);

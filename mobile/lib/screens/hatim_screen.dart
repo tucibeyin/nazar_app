@@ -73,7 +73,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
   }
 
   Future<void> _advance() async {
-    if (_advancing) return;
+    if (_advancing || _hatimState == _HatimState.idle) return;
     _advancing = true;
     try {
       final total = _current?.total ?? 6236;
@@ -101,9 +101,9 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
   }
 
   Future<void> _resetProgress() async {
+    if (mounted) setState(() { _hatimState = _HatimState.idle; _current = null; });
     await _audio.stop();
     await ref.read(hatimProgressProvider.notifier).reset();
-    if (mounted) setState(() { _hatimState = _HatimState.idle; _current = null; });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
