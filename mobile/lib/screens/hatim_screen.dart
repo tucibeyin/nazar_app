@@ -9,6 +9,12 @@ import '../services/api_service.dart';
 import '../services/audio_service.dart';
 import '../widgets/painters/painters.dart';
 
+// ─── Mushaf renkleri ──────────────────────────────────────────────────────────
+
+const _kPageIvory   = Color(0xFFFAF3E0); // mushaf kâğıdı
+const _kInk         = Color(0xFF1A0800); // Osmanlı mürekkebi
+const _kVerseCircle = Color(0xFFF5EDD4); // ayet numarası arka planı
+
 // ─── Durum makinesi ───────────────────────────────────────────────────────────
 
 enum _HatimState { idle, loading, playing, paused, error }
@@ -24,7 +30,6 @@ class HatimScreen extends ConsumerStatefulWidget {
 
 class _HatimScreenState extends ConsumerState<HatimScreen>
     with SingleTickerProviderStateMixin {
-  // Hatim ekranına özel ses oynatıcı — HomeScreen'inkiyle çakışmaz.
   late final AudioService _audio;
   late final AnimationController _ambientCtrl;
 
@@ -38,12 +43,8 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
     _ambientCtrl = AnimationController(vsync: this, duration: kAmbientDuration)
       ..repeat(reverse: true);
     _audio = AudioService();
-    _audio.stateStream.listen((s) {
-      if (mounted) setState(() {});
-    });
-    _audio.completionStream.listen((_) {
-      if (mounted) _advance();
-    });
+    _audio.stateStream.listen((_) { if (mounted) setState(() {}); });
+    _audio.completionStream.listen((_) { if (mounted) _advance(); });
   }
 
   @override
@@ -58,15 +59,10 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
   Future<void> _playFromIndex(int index) async {
     if (!mounted) return;
     setState(() { _hatimState = _HatimState.loading; _errorMsg = null; });
-
     try {
-      final api = ref.read(apiServiceProvider);
-      final hatimAyet = await api.fetchHatimAyet(index);
+      final hatimAyet = await ref.read(apiServiceProvider).fetchHatimAyet(index);
       if (!mounted) return;
-      setState(() {
-        _current = hatimAyet;
-        _hatimState = _HatimState.playing;
-      });
+      setState(() { _current = hatimAyet; _hatimState = _HatimState.playing; });
       await _audio.playFromPath(hatimAyet.ayet.mp3Url);
     } on ApiException catch (e) {
       if (mounted) setState(() { _hatimState = _HatimState.error; _errorMsg = e.message; });
@@ -78,18 +74,16 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
   Future<void> _advance() async {
     final total = _current?.total ?? 6236;
     await ref.read(hatimProgressProvider.notifier).advance(total);
-    final nextIndex = ref.read(hatimProgressProvider);
-    _playFromIndex(nextIndex);
+    _playFromIndex(ref.read(hatimProgressProvider));
   }
 
   Future<void> _onPlayPause() async {
     switch (_hatimState) {
       case _HatimState.idle:
       case _HatimState.error:
-        final index = ref.read(hatimProgressProvider);
-        await _playFromIndex(index);
+        await _playFromIndex(ref.read(hatimProgressProvider));
       case _HatimState.loading:
-        break; // bekle
+        break;
       case _HatimState.playing:
         await _audio.pause();
         if (mounted) setState(() => _hatimState = _HatimState.paused);
@@ -105,13 +99,14 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
     if (mounted) setState(() { _hatimState = _HatimState.idle; _current = null; });
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BUILD
+  // ═══════════════════════════════════════════════════════════════════════════
 
   @override
   Widget build(BuildContext context) {
     final index = ref.watch(hatimProgressProvider);
     final total = _current?.total ?? 6236;
-    final progress = total > 0 ? index / total : 0.0;
 
     return Scaffold(
       backgroundColor: kBg,
@@ -130,93 +125,18 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
           SafeArea(
             child: Column(
               children: [
-                // Üst tezhip bandı + geri butonu
-                Stack(
-                  alignment: Alignment.centerLeft,
-                  children: [
-                    const CustomPaint(
-                      size: Size(double.infinity, kTezhipBandH),
-                      painter: TezhipBandPainter(isTop: true),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                          color: kGold, size: 20),
-                    ),
-                  ],
-                ),
+                _buildTopBar(),
 
+                // Mushaf sayfası — ekranın büyük bölümü
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Başlık
-                        Text(
-                          'Hatim',
-                          style: GoogleFonts.cormorantGaramond(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w700,
-                            color: kGreen,
-                            letterSpacing: 3,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'الختم',
-                          style: GoogleFonts.amiri(
-                            fontSize: 18,
-                            color: kGold,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-
-                        // İlerleme
-                        _buildProgress(index, total, progress),
-                        const SizedBox(height: 32),
-
-                        // Ayet bilgisi
-                        _buildAyetInfo(),
-                        const SizedBox(height: 40),
-
-                        // Play / Pause butonu
-                        _buildPlayButton(),
-                        const SizedBox(height: 16),
-
-                        // Hata mesajı
-                        if (_errorMsg != null)
-                          Text(
-                            _errorMsg!,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.red.shade700,
-                              fontSize: 13,
-                            ),
-                          ),
-                      ],
-                    ),
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+                    child: _buildMushafPage(),
                   ),
                 ),
 
-                // Alt tezhip bandı + sıfırla butonu
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: TextButton.icon(
-                    onPressed: _resetProgress,
-                    icon: Icon(Icons.restart_alt_rounded,
-                        color: kGreen.withValues(alpha: 0.6), size: 16),
-                    label: Text(
-                      'Başa Dön',
-                      style: GoogleFonts.cormorantGaramond(
-                        fontSize: 13,
-                        color: kGreen.withValues(alpha: 0.6),
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
-                ),
+                _buildControls(index, total),
+
                 const CustomPaint(
                   size: Size(double.infinity, kTezhipBandH),
                   painter: TezhipBandPainter(isTop: false),
@@ -229,110 +149,399 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
     );
   }
 
-  Widget _buildProgress(int index, int total, double progress) {
-    return Column(
+  // ── Üst bar ───────────────────────────────────────────────────────────────
+
+  Widget _buildTopBar() {
+    return Stack(
+      alignment: Alignment.centerLeft,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 6,
-            backgroundColor: kGold.withValues(alpha: 0.15),
-            valueColor: const AlwaysStoppedAnimation<Color>(kGold),
-          ),
+        const CustomPaint(
+          size: Size(double.infinity, kTezhipBandH),
+          painter: TezhipBandPainter(isTop: true),
         ),
-        const SizedBox(height: 8),
-        Text(
-          '${index + 1} / $total',
-          style: GoogleFonts.cormorantGaramond(
-            fontSize: 14,
-            color: kGreen,
-            letterSpacing: 1,
+        IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kGold, size: 20),
+        ),
+        Center(
+          child: Text(
+            'الختم',
+            style: GoogleFonts.amiri(
+              fontSize: 20,
+              color: kGold,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildAyetInfo() {
+  // ── Mushaf sayfası ────────────────────────────────────────────────────────
+
+  Widget _buildMushafPage() {
+    return Container(
+      decoration: BoxDecoration(
+        color: _kPageIvory,
+        boxShadow: [
+          BoxShadow(
+            color: kGold.withValues(alpha: 0.22),
+            blurRadius: 18,
+            offset: const Offset(0, 5),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Tezhip çerçeve
+          const Positioned.fill(
+            child: CustomPaint(painter: LevhaBorderPainter()),
+          ),
+
+          // İçerik
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildSurahHeader(),
+                const SizedBox(height: 14),
+                Expanded(child: _buildVerseArea()),
+                const SizedBox(height: 10),
+                _buildFooterRow(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Sure başlığı ──────────────────────────────────────────────────────────
+
+  Widget _buildSurahHeader() {
+    final name = _current?.ayet.sureIsim ?? '';
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(3),
+      child: SizedBox(
+        height: 46,
+        child: Stack(
+          children: [
+            const Positioned.fill(
+              child: CustomPaint(painter: LevhaHeaderPainter()),
+            ),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Text(
+                  name.isNotEmpty ? name : 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
+                  textAlign: TextAlign.center,
+                  textDirection: TextDirection.rtl,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.amiri(
+                    fontSize: 17,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
+            // Köşe süsleri
+            _cornerOrnament(left: true),
+            _cornerOrnament(left: false),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _cornerOrnament({required bool left}) {
+    return Positioned(
+      left: left ? 6 : null,
+      right: left ? null : 6,
+      top: 0, bottom: 0,
+      child: const Center(
+        child: Text('❧', style: TextStyle(color: kGold, fontSize: 16)),
+      ),
+    );
+  }
+
+  // ── Ayet alanı ────────────────────────────────────────────────────────────
+
+  Widget _buildVerseArea() {
+    if (_hatimState == _HatimState.loading) {
+      return const Center(
+        child: CircularProgressIndicator(color: kGold, strokeWidth: 2),
+      );
+    }
+
     if (_current == null) {
-      return Text(
-        _hatimState == _HatimState.loading
-            ? 'Yükleniyor...'
-            : 'Başlamak için play\'e bas',
-        style: GoogleFonts.cormorantGaramond(
-          fontSize: 15,
-          color: kGreen.withValues(alpha: 0.7),
-          fontStyle: FontStyle.italic,
+      // Başlangıç hali: büyük bismillah
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
+              textAlign: TextAlign.center,
+              textDirection: TextDirection.rtl,
+              style: GoogleFonts.scheherazadeNew(
+                fontSize: 30,
+                color: _kInk,
+                height: 2.2,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              _hatimState == _HatimState.error
+                  ? (_errorMsg ?? 'Hata oluştu')
+                  : 'Okumaya başlamak için ▶',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.cormorantGaramond(
+                fontSize: 13,
+                color: _hatimState == _HatimState.error
+                    ? Colors.red.shade700
+                    : kGold.withValues(alpha: 0.75),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
         ),
       );
     }
 
-    return Column(
+    // Ayet metni
+    return AnimatedBuilder(
+      animation: _ambientCtrl,
+      builder: (_, child) {
+        final isPlaying = _hatimState == _HatimState.playing;
+        // Oynarken hafif altın parıltı efekti
+        final glowAlpha = isPlaying
+            ? (0.04 + 0.04 * _ambientCtrl.value)
+            : 0.0;
+        return Stack(
+          children: [
+            if (isPlaying)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      colors: [
+                        kGold.withValues(alpha: glowAlpha),
+                        Colors.transparent,
+                      ],
+                      radius: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+            child!,
+          ],
+        );
+      },
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Text(
+            _current!.ayet.arapca,
+            textAlign: TextAlign.justify,
+            textDirection: TextDirection.rtl,
+            style: GoogleFonts.scheherazadeNew(
+              fontSize: 28,
+              color: _kInk,
+              height: 2.3,
+              // Kuran baskılarındaki mürekkep tonlaması
+              shadows: [
+                Shadow(
+                  color: _kInk.withValues(alpha: 0.18),
+                  blurRadius: 0.5,
+                  offset: const Offset(0.3, 0.3),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Alt bilgi satırı (meal + ayet no) ─────────────────────────────────────
+
+  Widget _buildFooterRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(
-          _current!.ayet.sureIsim,
-          style: GoogleFonts.cormorantGaramond(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: kGreen,
-            letterSpacing: 1.5,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          _current!.ayet.arapca,
-          textAlign: TextAlign.center,
-          textDirection: TextDirection.rtl,
-          maxLines: 4,
-          overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.amiri(
-            fontSize: 22,
-            color: kGold,
-            height: 1.9,
-          ),
-        ),
+        // Meal (Türkçe)
+        if (_current != null)
+          Expanded(
+            child: Text(
+              _current!.ayet.meal,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                color: _kInk.withValues(alpha: 0.55),
+                height: 1.5,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          )
+        else
+          const Spacer(),
+
+        const SizedBox(width: 8),
+
+        // Ayet numarası madalyonu
+        if (_current != null)
+          _buildAyetMedalyon(_current!.ayet.id),
       ],
     );
   }
 
-  Widget _buildPlayButton() {
+  Widget _buildAyetMedalyon(int id) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: _kVerseCircle,
+        border: Border.all(color: kGold, width: 1.8),
+        boxShadow: [
+          BoxShadow(
+            color: kGold.withValues(alpha: 0.25),
+            blurRadius: 6,
+          ),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // İnce iç çizgi
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: kGold.withValues(alpha: 0.35),
+                width: 0.7,
+              ),
+            ),
+          ),
+          Text(
+            '$id',
+            style: GoogleFonts.amiri(
+              fontSize: 12,
+              color: kGold,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Kontroller ────────────────────────────────────────────────────────────
+
+  Widget _buildControls(int index, int total) {
+    final progress = total > 0 ? (index + 1) / total : 0.0;
     final isLoading = _hatimState == _HatimState.loading;
     final isPlaying = _hatimState == _HatimState.playing;
 
-    return GestureDetector(
-      onTap: isLoading ? null : _onPlayPause,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: kBg,
-          border: Border.all(color: kGold, width: 2.5),
-          boxShadow: [
-            BoxShadow(
-              color: kGold.withValues(alpha: isPlaying ? 0.35 : 0.15),
-              blurRadius: isPlaying ? 20 : 8,
-              spreadRadius: isPlaying ? 4 : 0,
-            ),
-          ],
-        ),
-        child: isLoading
-            ? const Padding(
-                padding: EdgeInsets.all(22),
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: kGold,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 6),
+      child: Row(
+        children: [
+          // İlerleme
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 5,
+                    backgroundColor: kGold.withValues(alpha: 0.12),
+                    valueColor: const AlwaysStoppedAnimation<Color>(kGold),
+                  ),
                 ),
-              )
-            : Icon(
-                isPlaying
-                    ? Icons.pause_rounded
-                    : Icons.play_arrow_rounded,
-                color: kGold,
-                size: 40,
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    Text(
+                      '${index + 1} / $total',
+                      style: GoogleFonts.cormorantGaramond(
+                        fontSize: 12,
+                        color: kGreen,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: _resetProgress,
+                      child: Text(
+                        'Başa Dön',
+                        style: GoogleFonts.cormorantGaramond(
+                          fontSize: 11,
+                          color: kGreen.withValues(alpha: 0.5),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 20),
+
+          // Play / Pause butonu
+          GestureDetector(
+            onTap: isLoading ? null : _onPlayPause,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: kBg,
+                border: Border.all(
+                  color: isPlaying ? kGold : kGold.withValues(alpha: 0.55),
+                  width: 2.0,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: kGold.withValues(alpha: isPlaying ? 0.40 : 0.12),
+                    blurRadius: isPlaying ? 18 : 6,
+                    spreadRadius: isPlaying ? 3 : 0,
+                  ),
+                ],
               ),
+              child: isLoading
+                  ? const Padding(
+                      padding: EdgeInsets.all(18),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: kGold,
+                      ),
+                    )
+                  : Icon(
+                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      color: kGold,
+                      size: 34,
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }
