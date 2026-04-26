@@ -12,5 +12,7 @@ class ApiConfig {
 
   static String nazarEndpoint(int hashInt) => '$baseUrl/api/nazar/$hashInt';
   static String hatimEndpoint(int index) => '$baseUrl/api/hatim/$index';
+  static String packagesEndpoint() => '$baseUrl/api/packages';
+  static String packageDetailEndpoint(String id) => '$baseUrl/api/packages/$id';
   static String audioUrl(String mp3Path) => '$baseUrl$mp3Path';
 }

@@ -500,6 +500,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 context.push('/hatim');
               },
             ),
+            ListTile(
+              leading: Icon(Icons.shield_rounded, color: textColor),
+              title: Text(
+                'Benim Cevşenim',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+              subtitle: Text(
+                'Kişisel okuma listen',
+                style: TextStyle(fontSize: 12, color: subColor),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.push('/cevsen');
+              },
+            ),
             const Spacer(),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),

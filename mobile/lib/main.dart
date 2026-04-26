@@ -5,6 +5,7 @@ import 'package:camera/camera.dart';
 
 import 'config/theme.dart';
 import 'providers/service_providers.dart';
+import 'screens/cevsen_screen.dart';
 import 'screens/hatim_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/splash_screen.dart';
@@ -40,6 +41,10 @@ class _NazarAppState extends ConsumerState<NazarApp> {
         GoRoute(
           path: '/hatim',
           builder: (_, __) => const HatimScreen(),
+        ),
+        GoRoute(
+          path: '/cevsen',
+          builder: (_, __) => const CevsenScreen(),
         ),
         GoRoute(
           path: '/home',

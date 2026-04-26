@@ -10,6 +10,7 @@ import '../config/app_constants.dart';
 import '../core/logger.dart';
 import '../models/ayet.dart';
 import '../models/hatim_ayet.dart';
+import '../models/paket.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -109,6 +110,59 @@ class ApiService {
       throw const ApiException('Sunucu yanıt vermedi.');
     } catch (e, st) {
       AppLogger.error('fetchHatimAyet unexpected error', e, st);
+      throw ApiException('Beklenmedik hata: $e');
+    }
+  }
+
+  /// Tüm terapi paketlerini getirir.
+  Future<List<Paket>> fetchPackages() async {
+    final uri = Uri.parse(ApiConfig.packagesEndpoint());
+    final headers = <String, String>{
+      'Accept': 'application/json',
+      if (ApiConfig.apiKey.isNotEmpty) 'X-API-Key': ApiConfig.apiKey,
+    };
+    try {
+      AppLogger.info('fetchPackages');
+      final response = await _client.get(uri, headers: headers).timeout(kApiTimeout);
+      if (response.statusCode == 200) {
+        final list = jsonDecode(response.body) as List<dynamic>;
+        return list.map((e) => Paket.fromJson(e as Map<String, dynamic>)).toList();
+      }
+      throw ApiException('Paket listesi alınamadı.', statusCode: response.statusCode);
+    } on ApiException {
+      rethrow;
+    } on SocketException {
+      throw const ApiException('İnternet bağlantısı bulunamadı.');
+    } on TimeoutException {
+      throw const ApiException('Sunucu yanıt vermedi.');
+    } catch (e, st) {
+      AppLogger.error('fetchPackages unexpected error', e, st);
+      throw ApiException('Beklenmedik hata: $e');
+    }
+  }
+
+  /// Bir paketin detaylı ayet listesini getirir.
+  Future<PaketDetay> fetchPackageDetail(String id) async {
+    final uri = Uri.parse(ApiConfig.packageDetailEndpoint(id));
+    final headers = <String, String>{
+      'Accept': 'application/json',
+      if (ApiConfig.apiKey.isNotEmpty) 'X-API-Key': ApiConfig.apiKey,
+    };
+    try {
+      AppLogger.info('fetchPackageDetail id=$id');
+      final response = await _client.get(uri, headers: headers).timeout(kApiTimeout);
+      if (response.statusCode == 200) {
+        return PaketDetay.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      }
+      throw ApiException('Paket detayı alınamadı.', statusCode: response.statusCode);
+    } on ApiException {
+      rethrow;
+    } on SocketException {
+      throw const ApiException('İnternet bağlantısı bulunamadı.');
+    } on TimeoutException {
+      throw const ApiException('Sunucu yanıt vermedi.');
+    } catch (e, st) {
+      AppLogger.error('fetchPackageDetail unexpected error', e, st);
       throw ApiException('Beklenmedik hata: $e');
     }
   }
