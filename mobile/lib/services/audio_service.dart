@@ -6,15 +6,14 @@ import '../core/logger.dart';
 class AudioService {
   final AudioPlayer _player = AudioPlayer();
 
-  // Kasıtlı stop() sırasında gelen onPlayerComplete eventlerini filtrele.
-  // Aksi hâlde playFromPath içindeki stop() çağrısı, dinleyicilerde
-  // _advancePlayback → playFromPath → stop() kısır döngüsünü başlatır.
-  bool _intentionalStop = false;
-
   Stream<PlayerState> get stateStream => _player.onPlayerStateChanged;
 
-  late final Stream<void> completionStream =
-      _player.onPlayerComplete.where((_) => !_intentionalStop);
+  // onPlayerComplete yerine onPlayerStateChanged.completed kullanıyoruz.
+  // iOS'ta stop() çağrısı onPlayerComplete'i yanlışlıkla tetikleyebilir;
+  // PlayerState.completed ise yalnızca doğal bitiş için set edilir.
+  late final Stream<void> completionStream = _player.onPlayerStateChanged
+      .where((s) => s == PlayerState.completed)
+      .map((_) {});
 
   bool get isPlaying => _player.state == PlayerState.playing;
 
@@ -26,12 +25,9 @@ class AudioService {
     try {
       final url = ApiConfig.audioUrl(mp3Path);
       AppLogger.info('AudioService.play');
-      _intentionalStop = true;
       await _player.stop();
-      _intentionalStop = false;
       await _player.play(UrlSource(url));
     } catch (e, st) {
-      _intentionalStop = false;
       AppLogger.error('AudioService.play failed', e, st);
       rethrow;
     }
@@ -39,12 +35,7 @@ class AudioService {
 
   Future<void> pause() => _player.pause();
   Future<void> resume() => _player.resume();
-
-  Future<void> stop() async {
-    _intentionalStop = true;
-    await _player.stop();
-    _intentionalStop = false;
-  }
+  Future<void> stop() => _player.stop();
 
   void dispose() => _player.dispose();
 }
