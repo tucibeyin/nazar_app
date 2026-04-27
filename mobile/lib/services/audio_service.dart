@@ -1,4 +1,5 @@
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import '../config/api_config.dart';
 import '../core/logger.dart';
@@ -8,8 +9,6 @@ class AudioService {
 
   Stream<PlayerState> get stateStream => _player.onPlayerStateChanged;
 
-  // onPlayerStateChanged.completed kullanıyoruz çünkü stop() çağrısı
-  // PlayerState.stopped üretir; PlayerState.completed yalnızca doğal bitişte.
   late final Stream<void> completionStream = _player.onPlayerStateChanged
       .where((s) => s == PlayerState.completed)
       .map((_) {});
@@ -24,11 +23,10 @@ class AudioService {
     try {
       final url = ApiConfig.audioUrl(mp3Path);
       AppLogger.info('AudioService.play');
-      // stop() KASITLI olarak KALDIRILDI.
-      // play() iOS'ta AVPlayer.replaceCurrentItem kullanır ve geçişi
-      // kendi yönetir. Önceden stop() çağırmak PlayerState.completed
-      // olayını spurious olarak tetikleyip cascade'e yol açıyordu.
-      await _player.play(UrlSource(url));
+
+      // İndirildiyse lokalden çal, indirilmediyse indir ve cache'le.
+      final file = await DefaultCacheManager().getSingleFile(url);
+      await _player.play(DeviceFileSource(file.path));
     } catch (e, st) {
       AppLogger.error('AudioService.play failed', e, st);
       rethrow;
