@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -115,6 +116,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Future<void> _analyze() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) return;
     if (_isLoading || _viewState != AppViewState.camera) return;
+    HapticFeedback.lightImpact();
 
     // Çevrimdışı kontrolü
     final isOnline = ref.read(connectivityProvider);
@@ -206,6 +208,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Future<void> _toggleAudio() async {
+    HapticFeedback.lightImpact();
     final audio = ref.read(audioServiceProvider);
     if (_isPlaying) {
       await audio.pause();

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -11,9 +14,9 @@ import '../widgets/painters/painters.dart';
 
 // ─── Mushaf renkleri ──────────────────────────────────────────────────────────
 
-const _kPageIvory   = Color(0xFFFAF3E0); // mushaf kâğıdı
-const _kInk         = Color(0xFF1A0800); // Osmanlı mürekkebi
-const _kVerseCircle = Color(0xFFF5EDD4); // ayet numarası arka planı
+const _kPageIvory   = Color(0xFFFAF3E0);
+const _kInk         = Color(0xFF1A0800);
+const _kVerseCircle = Color(0xFFF5EDD4);
 
 // ─── Durum makinesi ───────────────────────────────────────────────────────────
 
@@ -38,6 +41,12 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
   String? _errorMsg;
   bool _advancing = false;
 
+  // ── Repeat & Sleep timer ──────────────────────────────────────────────────
+  bool _repeat = false;
+  Timer? _sleepTimer;
+  Timer? _sleepUiTimer;
+  DateTime? _sleepEnd;
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +59,8 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
 
   @override
   void dispose() {
+    _sleepTimer?.cancel();
+    _sleepUiTimer?.cancel();
     _ambientCtrl.dispose();
     _audio.dispose();
     super.dispose();
@@ -65,6 +76,8 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
       if (!mounted) return;
       setState(() { _current = hatimAyet; _hatimState = _HatimState.playing; });
       await _audio.playFromPath(hatimAyet.ayet.mp3Url);
+      // Sonraki ayeti arka planda cache'e indir
+      _prefetchNext(index, hatimAyet.total);
     } on ApiException catch (e) {
       if (mounted) setState(() { _hatimState = _HatimState.error; _errorMsg = e.message; });
     } catch (e) {
@@ -72,19 +85,32 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
     }
   }
 
+  void _prefetchNext(int currentIndex, int total) {
+    if (_repeat) return; // tekrar modunda aynı ayet çalacak, prefetch'e gerek yok
+    final nextIndex = (currentIndex + 1) % total;
+    ref.read(apiServiceProvider).fetchHatimAyet(nextIndex).then((next) {
+      _audio.prefetch(next.ayet.mp3Url);
+    }).catchError((_) {});
+  }
+
   Future<void> _advance() async {
     if (_advancing || _hatimState == _HatimState.idle) return;
     _advancing = true;
     try {
-      final total = _current?.total ?? 6236;
-      await ref.read(hatimProgressProvider.notifier).advance(total);
-      await _playFromIndex(ref.read(hatimProgressProvider));
+      if (_repeat) {
+        await _playFromIndex(ref.read(hatimProgressProvider));
+      } else {
+        final total = _current?.total ?? 6236;
+        await ref.read(hatimProgressProvider.notifier).advance(total);
+        await _playFromIndex(ref.read(hatimProgressProvider));
+      }
     } finally {
       _advancing = false;
     }
   }
 
   Future<void> _onPlayPause() async {
+    HapticFeedback.lightImpact();
     switch (_hatimState) {
       case _HatimState.idle:
       case _HatimState.error:
@@ -106,6 +132,69 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
     await ref.read(hatimProgressProvider.notifier).reset();
   }
 
+  Future<void> _stopPlayback() async {
+    if (mounted) setState(() => _hatimState = _HatimState.idle);
+    await _audio.stop();
+  }
+
+  // ── Sleep timer ───────────────────────────────────────────────────────────
+
+  void _setSleepTimer(int minutes) {
+    _sleepTimer?.cancel();
+    _sleepUiTimer?.cancel();
+    if (minutes == 0) {
+      if (mounted) setState(() => _sleepEnd = null);
+      return;
+    }
+    _sleepEnd = DateTime.now().add(Duration(minutes: minutes));
+    _sleepTimer = Timer(Duration(minutes: minutes), () {
+      if (mounted) { _stopPlayback(); setState(() => _sleepEnd = null); }
+    });
+    _sleepUiTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+    if (mounted) setState(() {});
+  }
+
+  void _showSleepTimerDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _kPageIvory,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: kGold.withValues(alpha: 0.4)),
+        ),
+        title: Text(
+          'Uyku Zamanlayıcısı',
+          style: GoogleFonts.cormorantGaramond(
+            color: kGreen, fontWeight: FontWeight.w700, fontSize: 18,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final min in [15, 30, 60])
+              ListTile(
+                dense: true,
+                title: Text('$min dakika',
+                    style: GoogleFonts.cormorantGaramond(fontSize: 15, color: _kInk)),
+                onTap: () { Navigator.pop(ctx); _setSleepTimer(min); },
+              ),
+            if (_sleepEnd != null)
+              ListTile(
+                dense: true,
+                title: Text('İptal Et',
+                    style: GoogleFonts.cormorantGaramond(
+                        fontSize: 15, color: Colors.redAccent)),
+                onTap: () { Navigator.pop(ctx); _setSleepTimer(0); },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // BUILD
   // ═══════════════════════════════════════════════════════════════════════════
@@ -119,7 +208,6 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
       backgroundColor: kBg,
       body: Stack(
         children: [
-          // Parşömen arka plan
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _ambientCtrl,
@@ -134,7 +222,6 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
               children: [
                 _buildTopBar(),
 
-                // Mushaf sayfası — ekranın büyük bölümü
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
@@ -205,12 +292,10 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
       ),
       child: Stack(
         children: [
-          // Tezhip çerçeve
           const Positioned.fill(
             child: CustomPaint(painter: LevhaBorderPainter()),
           ),
 
-          // İçerik
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
             child: Column(
@@ -260,7 +345,6 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
                 ),
               ),
             ),
-            // Köşe süsleri
             _cornerOrnament(left: true),
             _cornerOrnament(left: false),
           ],
@@ -290,7 +374,6 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
     }
 
     if (_current == null) {
-      // Başlangıç hali: büyük bismillah
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -324,12 +407,10 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
       );
     }
 
-    // Ayet metni
     return AnimatedBuilder(
       animation: _ambientCtrl,
       builder: (_, child) {
         final isPlaying = _hatimState == _HatimState.playing;
-        // Oynarken hafif altın parıltı efekti
         final glowAlpha = isPlaying
             ? (0.04 + 0.04 * _ambientCtrl.value)
             : 0.0;
@@ -364,7 +445,6 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
               fontSize: 28,
               color: _kInk,
               height: 2.3,
-              // Kuran baskılarındaki mürekkep tonlaması
               shadows: [
                 Shadow(
                   color: _kInk.withValues(alpha: 0.18),
@@ -379,13 +459,12 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
     );
   }
 
-  // ── Alt bilgi satırı (meal + ayet no) ─────────────────────────────────────
+  // ── Alt bilgi satırı ──────────────────────────────────────────────────────
 
   Widget _buildFooterRow() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        // Meal (Türkçe)
         if (_current != null)
           Expanded(
             child: Text(
@@ -405,7 +484,6 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
 
         const SizedBox(width: 8),
 
-        // Ayet numarası madalyonu
         if (_current != null)
           _buildAyetMedalyon(_current!.ayet.id),
       ],
@@ -430,7 +508,6 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // İnce iç çizgi
           Container(
             width: 30,
             height: 30,
@@ -466,7 +543,6 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
       padding: const EdgeInsets.fromLTRB(24, 6, 24, 6),
       child: Row(
         children: [
-          // İlerleme
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -491,6 +567,47 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
                         letterSpacing: 0.5,
                       ),
                     ),
+                    const SizedBox(width: 10),
+                    // Repeat butonu
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _repeat = !_repeat);
+                      },
+                      child: Icon(
+                        Icons.repeat_rounded,
+                        size: 15,
+                        color: _repeat ? kGold : kGold.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Sleep timer butonu
+                    GestureDetector(
+                      onTap: _showSleepTimerDialog,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.bedtime_outlined,
+                            size: 15,
+                            color: _sleepEnd != null
+                                ? kGold
+                                : kGold.withValues(alpha: 0.35),
+                          ),
+                          if (_sleepEnd != null) ...[
+                            const SizedBox(width: 3),
+                            Text(
+                              '${_sleepEnd!.difference(DateTime.now()).inMinutes}dk',
+                              style: GoogleFonts.cormorantGaramond(
+                                fontSize: 11,
+                                color: kGold,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                     const Spacer(),
                     GestureDetector(
                       onTap: _resetProgress,
@@ -511,7 +628,6 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
 
           const SizedBox(width: 20),
 
-          // Play / Pause butonu
           GestureDetector(
             onTap: isLoading ? null : _onPlayPause,
             child: AnimatedContainer(

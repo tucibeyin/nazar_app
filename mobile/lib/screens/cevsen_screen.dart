@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_constants.dart';
 import '../models/ayet.dart';
@@ -46,7 +50,15 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
   List<_Entry> _playlist = [];
   int _playIndex = 0;
   String? _errorMsg;
-  bool _advancing = false; // re-entrant advance koruması
+  bool _advancing = false;
+
+  // ── Repeat & Sleep timer ──────────────────────────────────────────────────
+  bool _repeat = false;
+  Timer? _sleepTimer;
+  Timer? _sleepUiTimer;
+  DateTime? _sleepEnd;
+
+  static const _kProgressKey = 'cevsen_play_index';
 
   @override
   void initState() {
@@ -60,9 +72,23 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
 
   @override
   void dispose() {
+    _sleepTimer?.cancel();
+    _sleepUiTimer?.cancel();
     _ambientCtrl.dispose();
     _audio.dispose();
     super.dispose();
+  }
+
+  // ── İlerleme kaydı ────────────────────────────────────────────────────────
+
+  Future<void> _saveProgress(int index) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kProgressKey, index);
+  }
+
+  Future<int> _loadProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_kProgressKey) ?? 0;
   }
 
   // ── Oynatma akışı ─────────────────────────────────────────────────────────
@@ -80,13 +106,20 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
           for (final ayet in details[i].ayetler)
             _Entry(ayet: ayet, paketId: cevsen[i].id),
       ];
-      _playIndex = 0;
+
       if (_playlist.isEmpty) {
         if (mounted) setState(() => _playState = _PlayState.idle);
         return;
       }
+
+      // Kaldığı yerden devam
+      final saved = await _loadProgress();
+      _playIndex = (saved < _playlist.length) ? saved : 0;
+
       setState(() => _playState = _PlayState.playing);
-      await _audio.playFromPath(_playlist[0].ayet.mp3Url);
+      await _audio.playFromPath(_playlist[_playIndex].ayet.mp3Url);
+      // Sonraki ayeti arka planda cache'e indir
+      _prefetchNext(_playIndex);
     } on ApiException catch (e) {
       if (mounted) setState(() { _playState = _PlayState.error; _errorMsg = e.message; });
     } catch (_) {
@@ -97,17 +130,37 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
   void _advancePlayback() {
     if (_advancing || _playState == _PlayState.idle) return;
     _advancing = true;
+
+    if (_repeat) {
+      // Aynı ayeti tekrar çal
+      _audio.playFromPath(_playlist[_playIndex].ayet.mp3Url)
+          .whenComplete(() => _advancing = false);
+      return;
+    }
+
     if (_playIndex + 1 < _playlist.length) {
       setState(() => _playIndex++);
+      _saveProgress(_playIndex);
+      _prefetchNext(_playIndex);
       _audio.playFromPath(_playlist[_playIndex].ayet.mp3Url)
           .whenComplete(() => _advancing = false);
     } else {
       _advancing = false;
+      _saveProgress(0); // Tamamlandı, sıfırla
       setState(() { _playState = _PlayState.idle; _playlist = []; _playIndex = 0; });
     }
   }
 
+  void _prefetchNext(int currentIndex) {
+    if (_repeat) return;
+    final nextIndex = currentIndex + 1;
+    if (nextIndex < _playlist.length) {
+      _audio.prefetch(_playlist[nextIndex].ayet.mp3Url);
+    }
+  }
+
   Future<void> _togglePlayPause() async {
+    HapticFeedback.lightImpact();
     switch (_playState) {
       case _PlayState.idle:
       case _PlayState.error:
@@ -124,40 +177,36 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
   }
 
   Future<void> _stopPlayback() async {
-    // State'i önce idle yap — stop() completion tetiklerse guard devrede olsun
     if (mounted) setState(() { _playState = _PlayState.idle; _playlist = []; _playIndex = 0; });
     await _audio.stop();
   }
 
-  // ── Paket silme — playlist ile tam senkronizasyon ─────────────────────────
+  // ── Paket silme ───────────────────────────────────────────────────────────
 
   Future<void> _onRemovePackage(String paketId) async {
+    HapticFeedback.lightImpact();
     ref.read(cevsenProvider.notifier).remove(paketId);
 
-    // Oynatma yoksa playlist güncellemeye gerek yok
     if (_playlist.isEmpty) return;
 
     final currentId  = _playlist[_playIndex].paketId;
-    // Silinecek kaç entry, mevcut index'in öncesinde?
     final removedBefore = _playlist.take(_playIndex)
         .where((e) => e.paketId == paketId).length;
 
     final newPlaylist = _playlist.where((e) => e.paketId != paketId).toList();
 
     if (newPlaylist.isEmpty) {
-      // Listede hiç ayet kalmadı — her şeyi durdur
       await _audio.stop();
       if (mounted) setState(() { _playlist = []; _playIndex = 0; _playState = _PlayState.idle; });
       return;
     }
 
     if (currentId == paketId) {
-      // Şu an çalan paket silindi — bir sonraki ayete atla
       final int newIndex = (_playIndex - removedBefore).clamp(0, newPlaylist.length - 1);
       setState(() { _playlist = newPlaylist; _playIndex = newIndex; _playState = _PlayState.playing; });
       await _audio.playFromPath(newPlaylist[newIndex].ayet.mp3Url);
+      _prefetchNext(newIndex);
     } else {
-      // Çalmayan bir paket silindi — sadece index'i güncelle, ses kesintisiz devam eder
       setState(() {
         _playlist = newPlaylist;
         _playIndex = (_playIndex - removedBefore).clamp(0, newPlaylist.length - 1);
@@ -165,23 +214,82 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
     }
   }
 
-  // ── Paket ekleme — aktif oynatmaya anlık entegre ──────────────────────────
+  // ── Paket ekleme ──────────────────────────────────────────────────────────
 
   Future<void> _onAddPackage(Paket paket) async {
     await ref.read(cevsenProvider.notifier).add(paket);
 
-    // Oynatma aktifse yeni paketi anında playlist'e ekle
     if (_playState == _PlayState.playing || _playState == _PlayState.paused) {
       try {
         final detail = await ref.read(apiServiceProvider).fetchPackageDetail(paket.id);
         final newEntries = detail.ayetler
             .map((a) => _Entry(ayet: a, paketId: paket.id))
             .toList();
-        if (mounted) setState(() => _playlist = [..._playlist, ...newEntries]);
-      } catch (_) {
-        // Sessizce geç — paket cevşende, sonraki oynatmada dahil olur
-      }
+        if (mounted) {
+          setState(() => _playlist = [..._playlist, ...newEntries]);
+          // Yeni paketin ilk ayetini ön belleğe al
+          if (newEntries.isNotEmpty) _audio.prefetch(newEntries.first.ayet.mp3Url);
+        }
+      } catch (_) {}
     }
+  }
+
+  // ── Sleep timer ───────────────────────────────────────────────────────────
+
+  void _setSleepTimer(int minutes) {
+    _sleepTimer?.cancel();
+    _sleepUiTimer?.cancel();
+    if (minutes == 0) {
+      if (mounted) setState(() => _sleepEnd = null);
+      return;
+    }
+    _sleepEnd = DateTime.now().add(Duration(minutes: minutes));
+    _sleepTimer = Timer(Duration(minutes: minutes), () {
+      if (mounted) { _stopPlayback(); setState(() => _sleepEnd = null); }
+    });
+    _sleepUiTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+    if (mounted) setState(() {});
+  }
+
+  void _showSleepTimerDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _kIvory,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: kGold.withValues(alpha: 0.4)),
+        ),
+        title: Text(
+          'Uyku Zamanlayıcısı',
+          style: GoogleFonts.cormorantGaramond(
+            color: kGreen, fontWeight: FontWeight.w700, fontSize: 18,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final min in [15, 30, 60])
+              ListTile(
+                dense: true,
+                title: Text('$min dakika',
+                    style: GoogleFonts.cormorantGaramond(fontSize: 15, color: _kInk)),
+                onTap: () { Navigator.pop(ctx); _setSleepTimer(min); },
+              ),
+            if (_sleepEnd != null)
+              ListTile(
+                dense: true,
+                title: Text('İptal Et',
+                    style: GoogleFonts.cormorantGaramond(
+                        fontSize: 15, color: Colors.redAccent)),
+                onTap: () { Navigator.pop(ctx); _setSleepTimer(0); },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   // ── Yardımcılar ───────────────────────────────────────────────────────────
@@ -455,7 +563,6 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
                   ),
                 ),
                 const SizedBox(height: 6),
-                // Paket adı — sadece oynatma sırasında göster
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 250),
                   child: isActive && current != null
@@ -487,6 +594,47 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
                             ? Colors.red.shade600
                             : kGreen.withValues(alpha: 0.7),
                         letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Repeat butonu
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _repeat = !_repeat);
+                      },
+                      child: Icon(
+                        Icons.repeat_rounded,
+                        size: 15,
+                        color: _repeat ? kGold : kGold.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Sleep timer butonu
+                    GestureDetector(
+                      onTap: _showSleepTimerDialog,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.bedtime_outlined,
+                            size: 15,
+                            color: _sleepEnd != null
+                                ? kGold
+                                : kGold.withValues(alpha: 0.35),
+                          ),
+                          if (_sleepEnd != null) ...[
+                            const SizedBox(width: 3),
+                            Text(
+                              '${_sleepEnd!.difference(DateTime.now()).inMinutes}dk',
+                              style: GoogleFonts.cormorantGaramond(
+                                fontSize: 11,
+                                color: kGold,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                     const Spacer(),
@@ -561,7 +709,7 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
   }
 }
 
-// ─── Nabız noktası (aktif paket göstergesi) ───────────────────────────────────
+// ─── Nabız noktası ────────────────────────────────────────────────────────────
 
 class _PulseDot extends StatefulWidget {
   const _PulseDot();
@@ -659,7 +807,6 @@ class _PackageCatalogSheetState extends ConsumerState<_PackageCatalogSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Tutaç
           Padding(
             padding: const EdgeInsets.only(top: 10, bottom: 2),
             child: Container(
@@ -670,7 +817,6 @@ class _PackageCatalogSheetState extends ConsumerState<_PackageCatalogSheet> {
               ),
             ),
           ),
-          // Başlık
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 10, 8, 8),
             child: Row(
