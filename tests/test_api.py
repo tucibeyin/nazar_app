@@ -10,10 +10,26 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+# sure_no / ayet_no alanları eklendi — _ayet_lookup bunlara ihtiyaç duyar.
 MOCK_AYETLER = [
-    {"id": 0, "sure_isim": "Al-Fatiha 1", "arapca": "بسم", "meal": "Bismillah", "mp3_url": "/audio/001001.mp3"},
-    {"id": 1, "sure_isim": "Al-Baqara 1", "arapca": "الم", "meal": "Elif Lam Mim", "mp3_url": "/audio/002001.mp3"},
-    {"id": 2, "sure_isim": "Al-Baqara 2", "arapca": "ذلك", "meal": "İşte o kitap", "mp3_url": "/audio/002002.mp3"},
+    {
+        "id": 1, "sure_no": 1, "ayet_no": 1,
+        "sure_isim": "Fatiha", "arapca": "بِسْمِ اللَّهِ",
+        "meal": "Rahman ve Rahim olan Allah'ın adıyla",
+        "mp3_url": "/audio/001001.mp3",
+    },
+    {
+        "id": 2, "sure_no": 1, "ayet_no": 2,
+        "sure_isim": "Fatiha", "arapca": "الْحَمْدُ لِلَّهِ",
+        "meal": "Hamd alemlerin Rabbi Allah'a",
+        "mp3_url": "/audio/001002.mp3",
+    },
+    {
+        "id": 255, "sure_no": 2, "ayet_no": 255,
+        "sure_isim": "Bakara", "arapca": "اللَّهُ لَا إِلَهَ",
+        "meal": "Allah; O'ndan başka ilah yoktur",
+        "mp3_url": "/audio/002255.mp3",
+    },
 ]
 
 
@@ -21,7 +37,7 @@ def _make_client(api_key: str = "", ayetler: list = None) -> TestClient:
     """Test istemcisi — gerçek quran_data.json yerine mock veri kullanır."""
     data = ayetler if ayetler is not None else MOCK_AYETLER
     with (
-        patch("builtins.open"),
+        patch("builtins.open", create=True),
         patch("pathlib.Path.exists", return_value=True),
         patch("json.load", return_value=data),
     ):
@@ -68,8 +84,11 @@ class TestHealthEndpoint:
         r = client.get("/health")
         assert "x-response-time" in r.headers
 
+    def test_health_has_request_id_header(self, client: TestClient) -> None:
+        r = client.get("/health")
+        assert "x-request-id" in r.headers
+
     def test_health_accessible_without_api_key(self, client_with_key: TestClient) -> None:
-        """Sağlık endpoint'i API key olmadan erişilebilir olmalı."""
         r = client_with_key.get("/health")
         assert r.status_code == 200
 
@@ -90,7 +109,6 @@ class TestApiKeyAuth:
         assert r.status_code == 200
 
     def test_no_api_key_env_allows_open_access(self, client: TestClient) -> None:
-        """API_KEY env boşken endpoint herkese açık."""
         r = client.get("/api/nazar/0")
         assert r.status_code == 200
 
@@ -127,6 +145,10 @@ class TestNazarEndpoint:
         r = client.get("/api/nazar/0")
         assert "x-response-time" in r.headers
 
+    def test_response_has_cache_control(self, client: TestClient) -> None:
+        r = client.get("/api/nazar/0")
+        assert "public" in r.headers.get("cache-control", "")
+
     def test_mp3_url_not_empty(self, client: TestClient) -> None:
         data = client.get("/api/nazar/0").json()
         assert data["mp3_url"], "mp3_url boş olmamalı"
@@ -141,6 +163,67 @@ class TestNazarEndpoint:
             data = client.get(f"/api/nazar/{i}").json()
             ids_seen.add(data["id"])
         assert ids_seen == {a["id"] for a in MOCK_AYETLER}
+
+
+# ─── Hatim Endpoint ───────────────────────────────────────────────────────────
+
+class TestHatimEndpoint:
+    def test_returns_index_and_total(self, client: TestClient) -> None:
+        r = client.get("/api/hatim/0")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["index"] == 0
+        assert data["total"] == len(MOCK_AYETLER)
+
+    def test_modulo_wraps(self, client: TestClient) -> None:
+        r = client.get(f"/api/hatim/{len(MOCK_AYETLER)}")
+        assert r.json()["index"] == 0
+
+    def test_negative_returns_422(self, client: TestClient) -> None:
+        assert client.get("/api/hatim/-1").status_code == 422
+
+    def test_cache_control_present(self, client: TestClient) -> None:
+        r = client.get("/api/hatim/0")
+        assert "public" in r.headers.get("cache-control", "")
+
+
+# ─── Packages Endpoint ────────────────────────────────────────────────────────
+
+class TestPackagesEndpoint:
+    def test_returns_list(self, client: TestClient) -> None:
+        r = client.get("/api/packages")
+        assert r.status_code == 200
+        assert isinstance(r.json(), list)
+        assert len(r.json()) > 0
+
+    def test_package_has_required_fields(self, client: TestClient) -> None:
+        data = client.get("/api/packages").json()[0]
+        for field in ("id", "isim", "aciklama", "icon", "ayet_sayisi"):
+            assert field in data, f"Eksik alan: {field}"
+
+    def test_cache_control_present(self, client: TestClient) -> None:
+        r = client.get("/api/packages")
+        assert "public" in r.headers.get("cache-control", "")
+
+    def test_known_package_detail(self, client: TestClient) -> None:
+        r = client.get("/api/packages/fatiha")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["id"] == "fatiha"
+        assert "ayetler" in data
+
+    def test_fatiha_ayetler_from_mock(self, client: TestClient) -> None:
+        # MOCK_AYETLER'de (1,1) ve (1,2) var — fatiha paketi bunları bulmalı.
+        r = client.get("/api/packages/fatiha")
+        assert r.status_code == 200
+        assert len(r.json()["ayetler"]) == 2
+
+    def test_unknown_package_returns_404(self, client: TestClient) -> None:
+        assert client.get("/api/packages/bilinmeyen-paket").status_code == 404
+
+    def test_package_detail_cache_control(self, client: TestClient) -> None:
+        r = client.get("/api/packages/fatiha")
+        assert "public" in r.headers.get("cache-control", "")
 
 
 # ─── Boş Veritabanı ───────────────────────────────────────────────────────────

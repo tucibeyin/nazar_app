@@ -1,0 +1,29 @@
+[Unit]
+Description=Nazar API (Gunicorn + Uvicorn Workers)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=nazar
+Group=nazar
+WorkingDirectory=/opt/nazar
+EnvironmentFile=/opt/nazar/.env
+ExecStart=/opt/nazar/venv/bin/gunicorn -c /opt/nazar/gunicorn.conf.py main:app
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nazar-api
+
+# Güvenlik kısıtlamaları
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/nazar
+
+[Install]
+WantedBy=multi-user.target
