@@ -11,8 +11,8 @@
 #   - nazar-api.service systemd'ye kurulmuş
 set -euo pipefail
 
-APP_DIR=/opt/nazar
-SERVICE=nazar-api
+APP_DIR=/var/www/nazar_app
+SERVICE=nazar
 
 echo "▸ [1/4] Kod güncelleniyor..."
 cd "$APP_DIR"

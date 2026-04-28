@@ -4,8 +4,8 @@
 # Kullanım: ssh root@vps "bash -s" < infra/setup.sh
 set -euo pipefail
 
-APP_DIR=/opt/nazar
-APP_USER=nazar
+APP_DIR=/var/www/nazar_app
+APP_USER=tucibeyin
 REPO_URL=https://github.com/tucibeyin/nazar_app.git
 
 echo "▸ Sistem paketleri..."
@@ -36,10 +36,11 @@ ENVEOF
 fi
 
 echo "▸ systemd servisi kuruluyor..."
-cp "$APP_DIR/infra/nazar-api.service" /etc/systemd/system/nazar-api.service
+
+cp "$APP_DIR/infra/nazar-api.service" /etc/systemd/system/nazar.service
 systemctl daemon-reload
-systemctl enable nazar-api
-systemctl start nazar-api
+systemctl enable nazar
+systemctl start nazar
 
 echo "▸ nginx konfigürasyonu..."
 cp "$APP_DIR/infra/nginx.conf" /etc/nginx/sites-available/nazar
@@ -50,4 +51,4 @@ systemctl reload nginx
 echo ""
 echo "✓ Kurulum tamamlandı!"
 echo "  SSL için: certbot --nginx -d nazar.aracabak.com"
-echo "  Durum:    systemctl status nazar-api"
+echo "  Durum:    systemctl status nazar"
