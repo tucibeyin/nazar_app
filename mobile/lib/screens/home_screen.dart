@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -236,41 +234,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     _inkCtrl.forward(from: 0);
     await _shutterCtrl.forward();
     await _shutterCtrl.reverse();
-  }
-
-  // ── Çıkış ─────────────────────────────────────────────────────────────────
-
-  Future<void> _exitApp() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kParchment,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: kGold.withValues(alpha: 0.5), width: 1.2),
-        ),
-        title: const Text(
-          'Çıkış',
-          style: TextStyle(color: kGreen, fontWeight: FontWeight.w600),
-        ),
-        content: const Text('Uygulamadan çıkmak istiyor musunuz?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Hayır'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Evet'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    await ref.read(audioServiceProvider).stop();
-    await _cameraController?.dispose();
-    exit(0);
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -532,25 +495,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-              child: Row(
-                children: [
-                  _DrawerIconBtn(
-                    icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                    label: isDark ? 'Gündüz' : 'Gece',
-                    color: textColor,
-                    onTap: () => ref.read(themeProvider.notifier).toggle(),
-                  ),
-                  const SizedBox(width: 8),
-                  _DrawerIconBtn(
-                    icon: Icons.power_settings_new_rounded,
-                    label: 'Kapat',
-                    color: Colors.red.shade400,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      _exitApp();
-                    },
-                  ),
-                ],
+              child: _DrawerIconBtn(
+                icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                label: isDark ? 'Gündüz Modu' : 'Gece Modu',
+                color: textColor,
+                onTap: () => ref.read(themeProvider.notifier).toggle(),
               ),
             ),
           ],
@@ -650,32 +599,30 @@ class _DrawerIconBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(height: 5),
-              Text(
-                label,
-                style: GoogleFonts.cormorantGaramond(
-                  fontSize: 12,
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.cormorantGaramond(
+                fontSize: 13,
+                color: color,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
