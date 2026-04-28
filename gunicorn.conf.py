@@ -6,7 +6,7 @@ import multiprocessing
 workers = min(multiprocessing.cpu_count() * 2 + 1, 9)
 worker_class = "uvicorn.workers.UvicornWorker"
 
-bind = "127.0.0.1:8000"
+bind = "127.0.0.1:8014"
 timeout = 30
 keepalive = 5
 
