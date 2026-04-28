@@ -127,27 +127,25 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
     }
   }
 
-  void _advancePlayback() {
+  Future<void> _advancePlayback() async {
     if (_advancing || _playState == _PlayState.idle) return;
     _advancing = true;
-
-    if (_repeat) {
-      // Aynı ayeti tekrar çal
-      _audio.playFromPath(_playlist[_playIndex].ayet.mp3Url)
-          .whenComplete(() => _advancing = false);
-      return;
-    }
-
-    if (_playIndex + 1 < _playlist.length) {
-      setState(() => _playIndex++);
-      _saveProgress(_playIndex);
-      _prefetchNext(_playIndex);
-      _audio.playFromPath(_playlist[_playIndex].ayet.mp3Url)
-          .whenComplete(() => _advancing = false);
-    } else {
+    try {
+      if (_repeat) {
+        await _audio.playFromPath(_playlist[_playIndex].ayet.mp3Url);
+      } else if (_playIndex + 1 < _playlist.length) {
+        if (mounted) setState(() => _playIndex++);
+        _saveProgress(_playIndex);
+        _prefetchNext(_playIndex);
+        await _audio.playFromPath(_playlist[_playIndex].ayet.mp3Url);
+      } else {
+        _saveProgress(0);
+        if (mounted) setState(() { _playState = _PlayState.idle; _playlist = []; _playIndex = 0; });
+      }
+    } catch (_) {
+      if (mounted) setState(() { _playState = _PlayState.error; _errorMsg = 'Ses çalınamadı.'; });
+    } finally {
       _advancing = false;
-      _saveProgress(0); // Tamamlandı, sıfırla
-      setState(() { _playState = _PlayState.idle; _playlist = []; _playIndex = 0; });
     }
   }
 
@@ -626,7 +624,7 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
                           if (_sleepEnd != null) ...[
                             const SizedBox(width: 3),
                             Text(
-                              '${_sleepEnd!.difference(DateTime.now()).inMinutes}dk',
+                              '${(_sleepEnd!.difference(DateTime.now()).inSeconds / 60).ceil()}dk',
                               style: GoogleFonts.cormorantGaramond(
                                 fontSize: 11,
                                 color: kGold,

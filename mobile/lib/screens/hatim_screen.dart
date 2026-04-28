@@ -597,7 +597,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
                           if (_sleepEnd != null) ...[
                             const SizedBox(width: 3),
                             Text(
-                              '${_sleepEnd!.difference(DateTime.now()).inMinutes}dk',
+                              '${(_sleepEnd!.difference(DateTime.now()).inSeconds / 60).ceil()}dk',
                               style: GoogleFonts.cormorantGaramond(
                                 fontSize: 11,
                                 color: kGold,
