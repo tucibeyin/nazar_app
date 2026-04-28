@@ -42,6 +42,11 @@ systemctl daemon-reload
 systemctl enable nazar
 systemctl start nazar
 
+echo "▸ Deploy şifresiz reload izni (sudoers)..."
+echo "$APP_USER ALL=(ALL) NOPASSWD: /bin/systemctl reload nazar.service, /bin/systemctl status nazar.service" \
+  > /etc/sudoers.d/nazar-deploy
+chmod 440 /etc/sudoers.d/nazar-deploy
+
 echo "▸ nginx konfigürasyonu..."
 cp "$APP_DIR/infra/nginx.conf" /etc/nginx/sites-available/nazar
 ln -sf /etc/nginx/sites-available/nazar /etc/nginx/sites-enabled/nazar
