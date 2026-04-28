@@ -1,7 +1,7 @@
 name: nazar_app
 description: Nazar ve Ferahlama Uygulaması
 publish_to: 'none'
-version: 1.0.1+11
+version: 1.0.1+12
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

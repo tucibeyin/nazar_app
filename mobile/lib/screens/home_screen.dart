@@ -395,14 +395,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           child: Row(
             children: [
               IconButton(
-                onPressed: _viewState == AppViewState.camera ? _switchCamera : null,
-                icon: Icon(
-                  Icons.flip_camera_ios_rounded,
-                  color: _viewState == AppViewState.camera
-                      ? iconColor
-                      : iconColor.withValues(alpha: 0.25),
-                  size: 26,
-                ),
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                padding: const EdgeInsets.all(4),
+                constraints: const BoxConstraints(),
+                icon: Icon(Icons.menu_rounded, color: iconColor, size: 26),
               ),
               Expanded(
                 child: Column(
@@ -432,10 +428,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 ),
               ),
               IconButton(
-                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                padding: const EdgeInsets.all(4),
-                constraints: const BoxConstraints(),
-                icon: Icon(Icons.menu_rounded, color: iconColor, size: 26),
+                onPressed: _viewState == AppViewState.camera ? _switchCamera : null,
+                icon: Icon(
+                  Icons.flip_camera_ios_rounded,
+                  color: _viewState == AppViewState.camera
+                      ? iconColor
+                      : iconColor.withValues(alpha: 0.25),
+                  size: 26,
+                ),
               ),
             ],
           ),
