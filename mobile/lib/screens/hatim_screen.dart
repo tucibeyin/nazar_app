@@ -402,6 +402,21 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
                 fontStyle: FontStyle.italic,
               ),
             ),
+            if (_hatimState == _HatimState.error) ...[
+              const SizedBox(height: 14),
+              TextButton.icon(
+                onPressed: () => _playFromIndex(ref.read(hatimProgressProvider)),
+                icon: const Icon(Icons.refresh_rounded, color: kGold, size: 18),
+                label: Text(
+                  'Tekrar Dene',
+                  style: GoogleFonts.cormorantGaramond(
+                    fontSize: 14,
+                    color: kGold,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       );
@@ -658,7 +673,11 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
                       ),
                     )
                   : Icon(
-                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      _hatimState == _HatimState.error
+                          ? Icons.refresh_rounded
+                          : (isPlaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded),
                       color: kGold,
                       size: 34,
                     ),

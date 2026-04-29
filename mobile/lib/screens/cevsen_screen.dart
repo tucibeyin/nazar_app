@@ -580,20 +580,40 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
                 if (isActive && current != null) const SizedBox(height: 2),
                 Row(
                   children: [
-                    Text(
-                      isActive
-                          ? '${_playIndex + 1} / $total ayet'
-                          : _playState == _PlayState.error
-                              ? (_errorMsg ?? 'Hata oluştu')
-                              : '$totalAyets ayet hazır',
-                      style: GoogleFonts.cormorantGaramond(
-                        fontSize: 12,
-                        color: _playState == _PlayState.error
-                            ? Colors.red.shade600
-                            : kGreen.withValues(alpha: 0.7),
-                        letterSpacing: 0.3,
+                    if (!isActive && _playState == _PlayState.error)
+                      GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          _startPlayback();
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.refresh_rounded,
+                                size: 13, color: Colors.red.shade600),
+                            const SizedBox(width: 3),
+                            Text(
+                              _errorMsg ?? 'Hata oluştu — tekrar dene',
+                              style: GoogleFonts.cormorantGaramond(
+                                fontSize: 12,
+                                color: Colors.red.shade600,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Text(
+                        isActive
+                            ? '${_playIndex + 1} / $total ayet'
+                            : '$totalAyets ayet hazır',
+                        style: GoogleFonts.cormorantGaramond(
+                          fontSize: 12,
+                          color: kGreen.withValues(alpha: 0.7),
+                          letterSpacing: 0.3,
+                        ),
                       ),
-                    ),
                     const SizedBox(width: 8),
                     // Repeat butonu
                     GestureDetector(
@@ -680,7 +700,11 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
                       child: CircularProgressIndicator(strokeWidth: 2, color: kGold),
                     )
                   : Icon(
-                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      _playState == _PlayState.error
+                          ? Icons.refresh_rounded
+                          : (isPlaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded),
                       color: cevsen.isEmpty ? kGold.withValues(alpha: 0.3) : kGold,
                       size: 32,
                     ),

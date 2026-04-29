@@ -36,7 +36,6 @@ ENVEOF
 fi
 
 echo "▸ systemd servisi kuruluyor..."
-
 cp "$APP_DIR/infra/nazar-api.service" /etc/systemd/system/nazar.service
 systemctl daemon-reload
 systemctl enable nazar
@@ -52,6 +51,30 @@ cp "$APP_DIR/infra/nginx.conf" /etc/nginx/sites-available/nazar
 ln -sf /etc/nginx/sites-available/nazar /etc/nginx/sites-enabled/nazar
 nginx -t
 systemctl reload nginx
+
+echo "▸ Log dizini hazırlanıyor..."
+mkdir -p /var/log/nazar
+chown "$APP_USER:$APP_USER" /var/log/nazar
+
+echo "▸ Log rotation..."
+cp "$APP_DIR/infra/logrotate-nazar.conf" /etc/logrotate.d/nazar
+
+echo "▸ Disk alarm scripti..."
+chmod +x "$APP_DIR/infra/disk-check.sh"
+# Her saat başı tüm bölümleri kontrol et
+(crontab -u "$APP_USER" -l 2>/dev/null; echo "0 * * * * $APP_DIR/infra/disk-check.sh") \
+  | sort -u | crontab -u "$APP_USER" -
+
+echo "▸ SSL sertifikası otomatik yenileme..."
+# certbot systemd timer'ı Ubuntu/Debian'da otomatik kurulur; yoksa cron ekle.
+if systemctl is-enabled certbot.timer &>/dev/null; then
+  echo "  → certbot systemd timer aktif — ek ayar gerekmez."
+else
+  (crontab -l 2>/dev/null; \
+   echo "0 3 * * * certbot renew --quiet --deploy-hook 'systemctl reload nginx'") \
+    | sort -u | crontab -
+  echo "  → certbot cron eklendi (systemd timer bulunamadı)."
+fi
 
 echo ""
 echo "✓ Kurulum tamamlandı!"
