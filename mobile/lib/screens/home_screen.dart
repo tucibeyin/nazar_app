@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -49,6 +51,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   bool _isPlaying = false;
   Uint8List? _capturedPhotoBytes;
 
+  // ── Ses abonelikleri ──────────────────────────────────────────────────────
+  StreamSubscription<dynamic>? _audioStateSub;
+  StreamSubscription<void>? _audioCompletionSub;
+
   // ── Animasyon Kontrolcüleri ────────────────────────────────────────────────
   late final AnimationController _shutterCtrl;
   late final AnimationController _mysticCtrl;
@@ -77,10 +83,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     if (widget.cameras.isNotEmpty) _initCamera(_cameraIndex);
 
     final audio = ref.read(audioServiceProvider);
-    audio.stateStream.listen((s) {
+    _audioStateSub = audio.stateStream.listen((s) {
       if (mounted) setState(() => _isPlaying = s == PlayerState.playing);
     });
-    audio.completionStream.listen((_) {
+    _audioCompletionSub = audio.completionStream.listen((_) {
       if (mounted && _viewState == AppViewState.playing) _transitionToCamera();
     });
   }
@@ -240,6 +246,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   @override
   void dispose() {
+    _audioStateSub?.cancel();
+    _audioCompletionSub?.cancel();
     _shutterCtrl.dispose();
     _mysticCtrl.dispose();
     _waveCtrl.dispose();

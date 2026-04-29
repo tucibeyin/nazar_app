@@ -41,6 +41,8 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
     with SingleTickerProviderStateMixin, SleepTimerMixin {
   late final AudioService _audio;
   late final AnimationController _ambientCtrl;
+  StreamSubscription<void>? _completionSub;
+  StreamSubscription<dynamic>? _stateSub;
 
   _PlayState _playState = _PlayState.idle;
   List<_Entry> _playlist = [];
@@ -56,16 +58,18 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
     super.initState();
     _ambientCtrl = AnimationController(vsync: this, duration: kAmbientDuration)
       ..repeat(reverse: true);
-    _audio = AudioService();
-    _audio.stateStream.listen((_) { if (mounted) setState(() {}); });
-    _audio.completionStream.listen((_) { if (mounted) _advancePlayback(); });
+    _audio = ref.read(audioServiceProvider);
+    _stateSub = _audio.stateStream.listen((_) { if (mounted) setState(() {}); });
+    _completionSub = _audio.completionStream.listen((_) { if (mounted) _advancePlayback(); });
   }
 
   @override
   void dispose() {
     disposeSleepTimers();
+    _stateSub?.cancel();
+    _completionSub?.cancel();
+    _audio.stop();
     _ambientCtrl.dispose();
-    _audio.dispose();
     super.dispose();
   }
 
