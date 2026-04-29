@@ -41,8 +41,8 @@ def _make_client(api_key: str = "", ayetler: list = None) -> TestClient:
         patch("pathlib.Path.exists", return_value=True),
         patch("json.load", return_value=data),
     ):
-        if "main" in sys.modules:
-            del sys.modules["main"]
+        for _mod in ("main", "data", "schemas", "middleware"):
+            sys.modules.pop(_mod, None)
 
         sys.path.insert(0, str(Path(__file__).parent.parent))
         os.environ.setdefault("ALLOWED_ORIGINS", "http://testclient")
@@ -53,8 +53,11 @@ def _make_client(api_key: str = "", ayetler: list = None) -> TestClient:
             os.environ.pop("API_KEY", None)
 
         import main as app_module  # noqa: PLC0415
+        import data as data_module  # noqa: PLC0415
 
+        # Her iki modülün AYETLER referansını mock veriyle ezeriz.
         app_module.AYETLER = data
+        data_module.AYETLER = data
         return TestClient(app_module.app)
 
 

@@ -9,6 +9,9 @@ const kDarkBg    = Color(0xFF071912); // gece siyahı
 const kGold      = Color(0xFFC9A84C); // Osmanlı altını
 const kIndigo    = Color(0xFF1A3A5C); // lapis lazuli mavi
 
+const kIvory     = Color(0xFFFAF3E0); // fildişi — kart ve levha iç rengi
+const kInk       = Color(0xFF1A0800); // mürekkep siyahı — metafor metin rengi
+
 // ─── Karanlık Mod — Lapis Lazuli + Altın Paleti ───────────────────────────────
 
 const kDarkSurface  = Color(0xFF0D2018); // koyu zümrüt yüzey

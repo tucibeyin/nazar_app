@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_constants.dart';
+import '../core/sleep_timer_mixin.dart';
 import '../models/ayet.dart';
 import '../models/paket.dart';
 import '../providers/cevsen_provider.dart';
@@ -14,11 +15,6 @@ import '../providers/service_providers.dart';
 import '../services/api_service.dart';
 import '../services/audio_service.dart';
 import '../widgets/painters/painters.dart';
-
-// ─── Sabitler ─────────────────────────────────────────────────────────────────
-
-const _kIvory = Color(0xFFFAF3E0);
-const _kInk   = Color(0xFF1A0800);
 
 // ─── Oynatma durumu ───────────────────────────────────────────────────────────
 
@@ -42,7 +38,7 @@ class CevsenScreen extends ConsumerStatefulWidget {
 }
 
 class _CevsenScreenState extends ConsumerState<CevsenScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, SleepTimerMixin {
   late final AudioService _audio;
   late final AnimationController _ambientCtrl;
 
@@ -51,12 +47,7 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
   int _playIndex = 0;
   String? _errorMsg;
   bool _advancing = false;
-
-  // ── Repeat & Sleep timer ──────────────────────────────────────────────────
   bool _repeat = false;
-  Timer? _sleepTimer;
-  Timer? _sleepUiTimer;
-  DateTime? _sleepEnd;
 
   static const _kProgressKey = 'cevsen_play_index';
 
@@ -72,8 +63,7 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
 
   @override
   void dispose() {
-    _sleepTimer?.cancel();
-    _sleepUiTimer?.cancel();
+    disposeSleepTimers();
     _ambientCtrl.dispose();
     _audio.dispose();
     super.dispose();
@@ -112,13 +102,11 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
         return;
       }
 
-      // Kaldığı yerden devam
       final saved = await _loadProgress();
       _playIndex = (saved < _playlist.length) ? saved : 0;
 
       setState(() => _playState = _PlayState.playing);
       await _audio.playFromPath(_playlist[_playIndex].ayet.mp3Url);
-      // Sonraki ayeti arka planda cache'e indir
       _prefetchNext(_playIndex);
     } on ApiException catch (e) {
       if (mounted) setState(() { _playState = _PlayState.error; _errorMsg = e.message; });
@@ -187,7 +175,7 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
 
     if (_playlist.isEmpty) return;
 
-    final currentId  = _playlist[_playIndex].paketId;
+    final currentId     = _playlist[_playIndex].paketId;
     final removedBefore = _playlist.take(_playIndex)
         .where((e) => e.paketId == paketId).length;
 
@@ -225,69 +213,10 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
             .toList();
         if (mounted) {
           setState(() => _playlist = [..._playlist, ...newEntries]);
-          // Yeni paketin ilk ayetini ön belleğe al
           if (newEntries.isNotEmpty) _audio.prefetch(newEntries.first.ayet.mp3Url);
         }
       } catch (_) {}
     }
-  }
-
-  // ── Sleep timer ───────────────────────────────────────────────────────────
-
-  void _setSleepTimer(int minutes) {
-    _sleepTimer?.cancel();
-    _sleepUiTimer?.cancel();
-    if (minutes == 0) {
-      if (mounted) setState(() => _sleepEnd = null);
-      return;
-    }
-    _sleepEnd = DateTime.now().add(Duration(minutes: minutes));
-    _sleepTimer = Timer(Duration(minutes: minutes), () {
-      if (mounted) { _stopPlayback(); setState(() => _sleepEnd = null); }
-    });
-    _sleepUiTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (mounted) setState(() {});
-    });
-    if (mounted) setState(() {});
-  }
-
-  void _showSleepTimerDialog() {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _kIvory,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: kGold.withValues(alpha: 0.4)),
-        ),
-        title: Text(
-          'Uyku Zamanlayıcısı',
-          style: GoogleFonts.cormorantGaramond(
-            color: kGreen, fontWeight: FontWeight.w700, fontSize: 18,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final min in [15, 30, 60])
-              ListTile(
-                dense: true,
-                title: Text('$min dakika',
-                    style: GoogleFonts.cormorantGaramond(fontSize: 15, color: _kInk)),
-                onTap: () { Navigator.pop(ctx); _setSleepTimer(min); },
-              ),
-            if (_sleepEnd != null)
-              ListTile(
-                dense: true,
-                title: Text('İptal Et',
-                    style: GoogleFonts.cormorantGaramond(
-                        fontSize: 15, color: Colors.redAccent)),
-                onTap: () { Navigator.pop(ctx); _setSleepTimer(0); },
-              ),
-          ],
-        ),
-      ),
-    );
   }
 
   // ── Yardımcılar ───────────────────────────────────────────────────────────
@@ -320,7 +249,7 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
 
   @override
   Widget build(BuildContext context) {
-    final cevsen = ref.watch(cevsenProvider);
+    final cevsen  = ref.watch(cevsenProvider);
     final isActive = _playState == _PlayState.playing || _playState == _PlayState.paused;
 
     return Scaffold(
@@ -450,7 +379,7 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 280),
         decoration: BoxDecoration(
-          color: _kIvory,
+          color: kIvory,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isNowPlaying ? kGold : kGold.withValues(alpha: 0.28),
@@ -492,7 +421,7 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
             paket.isim,
             style: GoogleFonts.cormorantGaramond(
               fontSize: 15, fontWeight: FontWeight.w700,
-              color: isNowPlaying ? kGreen : _kInk,
+              color: isNowPlaying ? kGreen : kInk,
             ),
           ),
           subtitle: Column(
@@ -500,7 +429,7 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
             children: [
               Text(
                 paket.aciklama,
-                style: TextStyle(fontSize: 11, color: _kInk.withValues(alpha: 0.55), height: 1.4),
+                style: TextStyle(fontSize: 11, color: kInk.withValues(alpha: 0.55), height: 1.4),
                 maxLines: 2, overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 3),
@@ -531,13 +460,12 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
   // ── Oynatma kontrolleri ───────────────────────────────────────────────────
 
   Widget _buildPlayControls(List<Paket> cevsen) {
-    final isLoading = _playState == _PlayState.loading;
-    final isPlaying = _playState == _PlayState.playing;
-    final isActive  = isPlaying || _playState == _PlayState.paused;
-    final total     = isActive ? _playlist.length : 0;
-    final progress  = total > 0 ? (_playIndex + 1) / total : 0.0;
+    final isLoading  = _playState == _PlayState.loading;
+    final isPlaying  = _playState == _PlayState.playing;
+    final isActive   = isPlaying || _playState == _PlayState.paused;
+    final total      = isActive ? _playlist.length : 0;
     final totalAyets = cevsen.fold(0, (s, p) => s + p.ayetSayisi);
-    final current   = _currentPaket(cevsen);
+    final current    = _currentPaket(cevsen);
 
     return Container(
       decoration: BoxDecoration(
@@ -548,169 +476,159 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
       child: Row(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: progress.clamp(0.0, 1.0),
-                    minHeight: 4,
-                    backgroundColor: kGold.withValues(alpha: 0.12),
-                    valueColor: const AlwaysStoppedAnimation<Color>(kGold),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  child: isActive && current != null
-                      ? Align(
-                          key: ValueKey(current.id),
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            current.isim,
-                            style: GoogleFonts.cormorantGaramond(
-                              fontSize: 13, color: kGreen, fontWeight: FontWeight.w700,
-                            ),
-                            maxLines: 1, overflow: TextOverflow.ellipsis,
-                          ),
-                        )
-                      : const SizedBox.shrink(key: ValueKey('empty')),
-                ),
-                if (isActive && current != null) const SizedBox(height: 2),
-                Row(
-                  children: [
-                    if (!isActive && _playState == _PlayState.error)
-                      GestureDetector(
-                        onTap: () {
-                          HapticFeedback.lightImpact();
-                          _startPlayback();
-                        },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.refresh_rounded,
-                                size: 13, color: Colors.red.shade600),
-                            const SizedBox(width: 3),
-                            Text(
-                              _errorMsg ?? 'Hata oluştu — tekrar dene',
-                              style: GoogleFonts.cormorantGaramond(
-                                fontSize: 12,
-                                color: Colors.red.shade600,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Text(
-                        isActive
-                            ? '${_playIndex + 1} / $total ayet'
-                            : '$totalAyets ayet hazır',
-                        style: GoogleFonts.cormorantGaramond(
-                          fontSize: 12,
-                          color: kGreen.withValues(alpha: 0.7),
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    const SizedBox(width: 8),
-                    // Repeat butonu
-                    GestureDetector(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        setState(() => _repeat = !_repeat);
-                      },
-                      child: Icon(
-                        Icons.repeat_rounded,
-                        size: 15,
-                        color: _repeat ? kGold : kGold.withValues(alpha: 0.35),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Sleep timer butonu
-                    GestureDetector(
-                      onTap: _showSleepTimerDialog,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.bedtime_outlined,
-                            size: 15,
-                            color: _sleepEnd != null
-                                ? kGold
-                                : kGold.withValues(alpha: 0.35),
-                          ),
-                          if (_sleepEnd != null) ...[
-                            const SizedBox(width: 3),
-                            Text(
-                              '${(_sleepEnd!.difference(DateTime.now()).inSeconds / 60).ceil()}dk',
-                              style: GoogleFonts.cormorantGaramond(
-                                fontSize: 11,
-                                color: kGold,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const Spacer(),
-                    if (isActive)
-                      GestureDetector(
-                        onTap: _stopPlayback,
-                        child: Text(
-                          'Durdur',
-                          style: GoogleFonts.cormorantGaramond(
-                            fontSize: 11,
-                            color: Colors.redAccent.withValues(alpha: 0.7),
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
+            child: _buildProgressSection(
+              isActive: isActive,
+              isPlaying: isPlaying,
+              total: total,
+              totalAyets: totalAyets,
+              current: current,
             ),
           ),
           const SizedBox(width: 20),
-          GestureDetector(
-            onTap: (isLoading || cevsen.isEmpty) ? null : _togglePlayPause,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              width: 60, height: 60,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: kBg,
-                border: Border.all(
-                  color: isPlaying ? kGold : kGold.withValues(alpha: 0.55),
-                  width: 2.0,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: kGold.withValues(alpha: isPlaying ? 0.40 : 0.12),
-                    blurRadius: isPlaying ? 18 : 6,
-                    spreadRadius: isPlaying ? 3 : 0,
-                  ),
-                ],
-              ),
-              child: isLoading
-                  ? const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(strokeWidth: 2, color: kGold),
-                    )
-                  : Icon(
-                      _playState == _PlayState.error
-                          ? Icons.refresh_rounded
-                          : (isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded),
-                      color: cevsen.isEmpty ? kGold.withValues(alpha: 0.3) : kGold,
-                      size: 32,
-                    ),
-            ),
+          _buildCirclePlayButton(
+            isLoading: isLoading,
+            isPlaying: isPlaying,
+            cevsenEmpty: cevsen.isEmpty,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProgressSection({
+    required bool isActive,
+    required bool isPlaying,
+    required int total,
+    required int totalAyets,
+    required Paket? current,
+  }) {
+    final progress = total > 0 ? (_playIndex + 1) / total : 0.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: progress.clamp(0.0, 1.0),
+            minHeight: 4,
+            backgroundColor: kGold.withValues(alpha: 0.12),
+            valueColor: const AlwaysStoppedAnimation<Color>(kGold),
+          ),
+        ),
+        const SizedBox(height: 6),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          child: isActive && current != null
+              ? Align(
+                  key: ValueKey(current.id),
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    current.isim,
+                    style: GoogleFonts.cormorantGaramond(
+                      fontSize: 13, color: kGreen, fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                  ),
+                )
+              : const SizedBox.shrink(key: ValueKey('empty')),
+        ),
+        if (isActive && current != null) const SizedBox(height: 2),
+        Row(
+          children: [
+            if (!isActive && _playState == _PlayState.error)
+              GestureDetector(
+                onTap: () { HapticFeedback.lightImpact(); _startPlayback(); },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.refresh_rounded, size: 13, color: Colors.red.shade600),
+                    const SizedBox(width: 3),
+                    Text(
+                      _errorMsg ?? 'Hata oluştu — tekrar dene',
+                      style: GoogleFonts.cormorantGaramond(
+                        fontSize: 12, color: Colors.red.shade600, letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Text(
+                isActive ? '${_playIndex + 1} / $total ayet' : '$totalAyets ayet hazır',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 12, color: kGreen.withValues(alpha: 0.7), letterSpacing: 0.3,
+                ),
+              ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () { HapticFeedback.selectionClick(); setState(() => _repeat = !_repeat); },
+              child: Icon(
+                Icons.repeat_rounded,
+                size: 15,
+                color: _repeat ? kGold : kGold.withValues(alpha: 0.35),
+              ),
+            ),
+            const SizedBox(width: 8),
+            buildSleepTimerButton(
+              () => showSleepTimerDialog(context, _stopPlayback),
+            ),
+            const Spacer(),
+            if (isActive)
+              GestureDetector(
+                onTap: _stopPlayback,
+                child: Text(
+                  'Durdur',
+                  style: GoogleFonts.cormorantGaramond(
+                    fontSize: 11,
+                    color: Colors.redAccent.withValues(alpha: 0.7),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCirclePlayButton({
+    required bool isLoading,
+    required bool isPlaying,
+    required bool cevsenEmpty,
+  }) {
+    return GestureDetector(
+      onTap: (isLoading || cevsenEmpty) ? null : _togglePlayPause,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        width: 60, height: 60,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: kBg,
+          border: Border.all(
+            color: isPlaying ? kGold : kGold.withValues(alpha: 0.55),
+            width: 2.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: kGold.withValues(alpha: isPlaying ? 0.40 : 0.12),
+              blurRadius: isPlaying ? 18 : 6,
+              spreadRadius: isPlaying ? 3 : 0,
+            ),
+          ],
+        ),
+        child: isLoading
+            ? const Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(strokeWidth: 2, color: kGold),
+              )
+            : Icon(
+                _playState == _PlayState.error
+                    ? Icons.refresh_rounded
+                    : (isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                color: cevsenEmpty ? kGold.withValues(alpha: 0.3) : kGold,
+                size: 32,
+              ),
       ),
     );
   }
@@ -920,7 +838,7 @@ class _PackageCatalogSheetState extends ConsumerState<_PackageCatalogSheet> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         decoration: BoxDecoration(
-          color: const Color(0xFFFAF3E0),
+          color: kIvory,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: added ? kGold : kGold.withValues(alpha: 0.22),
@@ -941,7 +859,7 @@ class _PackageCatalogSheetState extends ConsumerState<_PackageCatalogSheet> {
           title: Text(
             paket.isim,
             style: GoogleFonts.cormorantGaramond(
-              fontSize: 14, fontWeight: FontWeight.w700, color: const Color(0xFF1A0800),
+              fontSize: 14, fontWeight: FontWeight.w700, color: kInk,
             ),
           ),
           subtitle: Column(
@@ -949,7 +867,7 @@ class _PackageCatalogSheetState extends ConsumerState<_PackageCatalogSheet> {
             children: [
               Text(
                 paket.aciklama,
-                style: const TextStyle(fontSize: 11, color: Color(0xFF1A0800), height: 1.35),
+                style: TextStyle(fontSize: 11, color: kInk.withValues(alpha: 0.65), height: 1.35),
                 maxLines: 2, overflow: TextOverflow.ellipsis,
               ),
               Text(

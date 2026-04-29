@@ -6,17 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../config/app_constants.dart';
+import '../core/sleep_timer_mixin.dart';
 import '../models/hatim_ayet.dart';
 import '../providers/service_providers.dart';
 import '../services/api_service.dart';
 import '../services/audio_service.dart';
 import '../widgets/painters/painters.dart';
-
-// ─── Mushaf renkleri ──────────────────────────────────────────────────────────
-
-const _kPageIvory   = Color(0xFFFAF3E0);
-const _kInk         = Color(0xFF1A0800);
-const _kVerseCircle = Color(0xFFF5EDD4);
 
 // ─── Durum makinesi ───────────────────────────────────────────────────────────
 
@@ -32,7 +27,7 @@ class HatimScreen extends ConsumerStatefulWidget {
 }
 
 class _HatimScreenState extends ConsumerState<HatimScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, SleepTimerMixin {
   late final AudioService _audio;
   late final AnimationController _ambientCtrl;
 
@@ -40,12 +35,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
   HatimAyet? _current;
   String? _errorMsg;
   bool _advancing = false;
-
-  // ── Repeat & Sleep timer ──────────────────────────────────────────────────
   bool _repeat = false;
-  Timer? _sleepTimer;
-  Timer? _sleepUiTimer;
-  DateTime? _sleepEnd;
 
   @override
   void initState() {
@@ -59,8 +49,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
 
   @override
   void dispose() {
-    _sleepTimer?.cancel();
-    _sleepUiTimer?.cancel();
+    disposeSleepTimers();
     _ambientCtrl.dispose();
     _audio.dispose();
     super.dispose();
@@ -76,7 +65,6 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
       if (!mounted) return;
       setState(() { _current = hatimAyet; _hatimState = _HatimState.playing; });
       await _audio.playFromPath(hatimAyet.ayet.mp3Url);
-      // Sonraki ayeti arka planda cache'e indir
       _prefetchNext(index, hatimAyet.total);
     } on ApiException catch (e) {
       if (mounted) setState(() { _hatimState = _HatimState.error; _errorMsg = e.message; });
@@ -86,7 +74,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
   }
 
   void _prefetchNext(int currentIndex, int total) {
-    if (_repeat) return; // tekrar modunda aynı ayet çalacak, prefetch'e gerek yok
+    if (_repeat) return;
     final nextIndex = (currentIndex + 1) % total;
     ref.read(apiServiceProvider).fetchHatimAyet(nextIndex).then((next) {
       _audio.prefetch(next.ayet.mp3Url);
@@ -137,64 +125,6 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
     await _audio.stop();
   }
 
-  // ── Sleep timer ───────────────────────────────────────────────────────────
-
-  void _setSleepTimer(int minutes) {
-    _sleepTimer?.cancel();
-    _sleepUiTimer?.cancel();
-    if (minutes == 0) {
-      if (mounted) setState(() => _sleepEnd = null);
-      return;
-    }
-    _sleepEnd = DateTime.now().add(Duration(minutes: minutes));
-    _sleepTimer = Timer(Duration(minutes: minutes), () {
-      if (mounted) { _stopPlayback(); setState(() => _sleepEnd = null); }
-    });
-    _sleepUiTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (mounted) setState(() {});
-    });
-    if (mounted) setState(() {});
-  }
-
-  void _showSleepTimerDialog() {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _kPageIvory,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: kGold.withValues(alpha: 0.4)),
-        ),
-        title: Text(
-          'Uyku Zamanlayıcısı',
-          style: GoogleFonts.cormorantGaramond(
-            color: kGreen, fontWeight: FontWeight.w700, fontSize: 18,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final min in [15, 30, 60])
-              ListTile(
-                dense: true,
-                title: Text('$min dakika',
-                    style: GoogleFonts.cormorantGaramond(fontSize: 15, color: _kInk)),
-                onTap: () { Navigator.pop(ctx); _setSleepTimer(min); },
-              ),
-            if (_sleepEnd != null)
-              ListTile(
-                dense: true,
-                title: Text('İptal Et',
-                    style: GoogleFonts.cormorantGaramond(
-                        fontSize: 15, color: Colors.redAccent)),
-                onTap: () { Navigator.pop(ctx); _setSleepTimer(0); },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ═══════════════════════════════════════════════════════════════════════════
   // BUILD
   // ═══════════════════════════════════════════════════════════════════════════
@@ -216,21 +146,17 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
               ),
             ),
           ),
-
           SafeArea(
             child: Column(
               children: [
                 _buildTopBar(),
-
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
                     child: _buildMushafPage(),
                   ),
                 ),
-
                 _buildControls(index, total),
-
                 const CustomPaint(
                   size: Size(double.infinity, kTezhipBandH),
                   painter: TezhipBandPainter(isTop: false),
@@ -260,11 +186,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
         Center(
           child: Text(
             'الختم',
-            style: GoogleFonts.amiri(
-              fontSize: 20,
-              color: kGold,
-              fontWeight: FontWeight.w700,
-            ),
+            style: GoogleFonts.amiri(fontSize: 20, color: kGold, fontWeight: FontWeight.w700),
           ),
         ),
       ],
@@ -276,26 +198,15 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
   Widget _buildMushafPage() {
     return Container(
       decoration: BoxDecoration(
-        color: _kPageIvory,
+        color: kIvory,
         boxShadow: [
-          BoxShadow(
-            color: kGold.withValues(alpha: 0.22),
-            blurRadius: 18,
-            offset: const Offset(0, 5),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
+          BoxShadow(color: kGold.withValues(alpha: 0.22), blurRadius: 18, offset: const Offset(0, 5)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 6, offset: const Offset(0, 2)),
         ],
       ),
       child: Stack(
         children: [
-          const Positioned.fill(
-            child: CustomPaint(painter: LevhaBorderPainter()),
-          ),
-
+          const Positioned.fill(child: CustomPaint(painter: LevhaBorderPainter())),
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
             child: Column(
@@ -324,9 +235,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
         height: 46,
         child: Stack(
           children: [
-            const Positioned.fill(
-              child: CustomPaint(painter: LevhaHeaderPainter()),
-            ),
+            const Positioned.fill(child: CustomPaint(painter: LevhaHeaderPainter())),
             Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -337,10 +246,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.amiri(
-                    fontSize: 17,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
+                    fontSize: 17, color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 0.5,
                   ),
                 ),
               ),
@@ -358,9 +264,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
       left: left ? 6 : null,
       right: left ? null : 6,
       top: 0, bottom: 0,
-      child: const Center(
-        child: Text('❧', style: TextStyle(color: kGold, fontSize: 16)),
-      ),
+      child: const Center(child: Text('❧', style: TextStyle(color: kGold, fontSize: 16))),
     );
   }
 
@@ -368,9 +272,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
 
   Widget _buildVerseArea() {
     if (_hatimState == _HatimState.loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: kGold, strokeWidth: 2),
-      );
+      return const Center(child: CircularProgressIndicator(color: kGold, strokeWidth: 2));
     }
 
     if (_current == null) {
@@ -382,11 +284,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
               'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
               textAlign: TextAlign.center,
               textDirection: TextDirection.rtl,
-              style: GoogleFonts.scheherazadeNew(
-                fontSize: 30,
-                color: _kInk,
-                height: 2.2,
-              ),
+              style: GoogleFonts.scheherazadeNew(fontSize: 30, color: kInk, height: 2.2),
             ),
             const SizedBox(height: 20),
             Text(
@@ -410,9 +308,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
                 label: Text(
                   'Tekrar Dene',
                   style: GoogleFonts.cormorantGaramond(
-                    fontSize: 14,
-                    color: kGold,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 14, color: kGold, fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -426,9 +322,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
       animation: _ambientCtrl,
       builder: (_, child) {
         final isPlaying = _hatimState == _HatimState.playing;
-        final glowAlpha = isPlaying
-            ? (0.04 + 0.04 * _ambientCtrl.value)
-            : 0.0;
+        final glowAlpha = isPlaying ? (0.04 + 0.04 * _ambientCtrl.value) : 0.0;
         return Stack(
           children: [
             if (isPlaying)
@@ -436,10 +330,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: RadialGradient(
-                      colors: [
-                        kGold.withValues(alpha: glowAlpha),
-                        Colors.transparent,
-                      ],
+                      colors: [kGold.withValues(alpha: glowAlpha), Colors.transparent],
                       radius: 1.2,
                     ),
                   ),
@@ -457,16 +348,8 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
             textAlign: TextAlign.justify,
             textDirection: TextDirection.rtl,
             style: GoogleFonts.scheherazadeNew(
-              fontSize: 28,
-              color: _kInk,
-              height: 2.3,
-              shadows: [
-                Shadow(
-                  color: _kInk.withValues(alpha: 0.18),
-                  blurRadius: 0.5,
-                  offset: const Offset(0.3, 0.3),
-                ),
-              ],
+              fontSize: 28, color: kInk, height: 2.3,
+              shadows: [Shadow(color: kInk.withValues(alpha: 0.18), blurRadius: 0.5, offset: const Offset(0.3, 0.3))],
             ),
           ),
         ),
@@ -486,62 +369,37 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
               _current!.ayet.meal,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                color: _kInk.withValues(alpha: 0.55),
-                height: 1.5,
-                fontStyle: FontStyle.italic,
-              ),
+              style: TextStyle(fontSize: 11, color: kInk.withValues(alpha: 0.55), height: 1.5, fontStyle: FontStyle.italic),
             ),
           )
         else
           const Spacer(),
-
         const SizedBox(width: 8),
-
-        if (_current != null)
-          _buildAyetMedalyon(_current!.ayet.id),
+        if (_current != null) _buildAyetMedalyon(_current!.ayet.id),
       ],
     );
   }
 
   Widget _buildAyetMedalyon(int id) {
     return Container(
-      width: 38,
-      height: 38,
+      width: 38, height: 38,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: _kVerseCircle,
+        color: const Color(0xFFF5EDD4),
         border: Border.all(color: kGold, width: 1.8),
-        boxShadow: [
-          BoxShadow(
-            color: kGold.withValues(alpha: 0.25),
-            blurRadius: 6,
-          ),
-        ],
+        boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.25), blurRadius: 6)],
       ),
       child: Stack(
         alignment: Alignment.center,
         children: [
           Container(
-            width: 30,
-            height: 30,
+            width: 30, height: 30,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(
-                color: kGold.withValues(alpha: 0.35),
-                width: 0.7,
-              ),
+              border: Border.all(color: kGold.withValues(alpha: 0.35), width: 0.7),
             ),
           ),
-          Text(
-            '$id',
-            style: GoogleFonts.amiri(
-              fontSize: 12,
-              color: kGold,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          Text('$id', style: GoogleFonts.amiri(fontSize: 12, color: kGold, fontWeight: FontWeight.w700)),
         ],
       ),
     );
@@ -550,7 +408,6 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
   // ── Kontroller ────────────────────────────────────────────────────────────
 
   Widget _buildControls(int index, int total) {
-    final progress = total > 0 ? (index + 1) / total : 0.0;
     final isLoading = _hatimState == _HatimState.loading;
     final isPlaying = _hatimState == _HatimState.playing;
 
@@ -558,132 +415,88 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
       padding: const EdgeInsets.fromLTRB(24, 6, 24, 6),
       child: Row(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 5,
-                    backgroundColor: kGold.withValues(alpha: 0.12),
-                    valueColor: const AlwaysStoppedAnimation<Color>(kGold),
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      '${index + 1} / $total',
-                      style: GoogleFonts.cormorantGaramond(
-                        fontSize: 12,
-                        color: kGreen,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    // Repeat butonu
-                    GestureDetector(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        setState(() => _repeat = !_repeat);
-                      },
-                      child: Icon(
-                        Icons.repeat_rounded,
-                        size: 15,
-                        color: _repeat ? kGold : kGold.withValues(alpha: 0.35),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Sleep timer butonu
-                    GestureDetector(
-                      onTap: _showSleepTimerDialog,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.bedtime_outlined,
-                            size: 15,
-                            color: _sleepEnd != null
-                                ? kGold
-                                : kGold.withValues(alpha: 0.35),
-                          ),
-                          if (_sleepEnd != null) ...[
-                            const SizedBox(width: 3),
-                            Text(
-                              '${(_sleepEnd!.difference(DateTime.now()).inSeconds / 60).ceil()}dk',
-                              style: GoogleFonts.cormorantGaramond(
-                                fontSize: 11,
-                                color: kGold,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: _resetProgress,
-                      child: Text(
-                        'Başa Dön',
-                        style: GoogleFonts.cormorantGaramond(
-                          fontSize: 11,
-                          color: kGreen.withValues(alpha: 0.5),
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
+          Expanded(child: _buildProgressSection(index, total)),
           const SizedBox(width: 20),
-
-          GestureDetector(
-            onTap: isLoading ? null : _onPlayPause,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: kBg,
-                border: Border.all(
-                  color: isPlaying ? kGold : kGold.withValues(alpha: 0.55),
-                  width: 2.0,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: kGold.withValues(alpha: isPlaying ? 0.40 : 0.12),
-                    blurRadius: isPlaying ? 18 : 6,
-                    spreadRadius: isPlaying ? 3 : 0,
-                  ),
-                ],
-              ),
-              child: isLoading
-                  ? const Padding(
-                      padding: EdgeInsets.all(18),
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: kGold,
-                      ),
-                    )
-                  : Icon(
-                      _hatimState == _HatimState.error
-                          ? Icons.refresh_rounded
-                          : (isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded),
-                      color: kGold,
-                      size: 34,
-                    ),
-            ),
-          ),
+          _buildCirclePlayButton(isLoading, isPlaying),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProgressSection(int index, int total) {
+    final progress = total > 0 ? (index + 1) / total : 0.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 5,
+            backgroundColor: kGold.withValues(alpha: 0.12),
+            valueColor: const AlwaysStoppedAnimation<Color>(kGold),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Row(
+          children: [
+            Text(
+              '${index + 1} / $total',
+              style: GoogleFonts.cormorantGaramond(fontSize: 12, color: kGreen, letterSpacing: 0.5),
+            ),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: () { HapticFeedback.selectionClick(); setState(() => _repeat = !_repeat); },
+              child: Icon(Icons.repeat_rounded, size: 15, color: _repeat ? kGold : kGold.withValues(alpha: 0.35)),
+            ),
+            const SizedBox(width: 8),
+            buildSleepTimerButton(() => showSleepTimerDialog(context, _stopPlayback)),
+            const Spacer(),
+            GestureDetector(
+              onTap: _resetProgress,
+              child: Text(
+                'Başa Dön',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 11, color: kGreen.withValues(alpha: 0.5), fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCirclePlayButton(bool isLoading, bool isPlaying) {
+    return GestureDetector(
+      onTap: isLoading ? null : _onPlayPause,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        width: 64, height: 64,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: kBg,
+          border: Border.all(color: isPlaying ? kGold : kGold.withValues(alpha: 0.55), width: 2.0),
+          boxShadow: [
+            BoxShadow(
+              color: kGold.withValues(alpha: isPlaying ? 0.40 : 0.12),
+              blurRadius: isPlaying ? 18 : 6,
+              spreadRadius: isPlaying ? 3 : 0,
+            ),
+          ],
+        ),
+        child: isLoading
+            ? const Padding(
+                padding: EdgeInsets.all(18),
+                child: CircularProgressIndicator(strokeWidth: 2, color: kGold),
+              )
+            : Icon(
+                _hatimState == _HatimState.error
+                    ? Icons.refresh_rounded
+                    : (isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                color: kGold,
+                size: 34,
+              ),
       ),
     );
   }
