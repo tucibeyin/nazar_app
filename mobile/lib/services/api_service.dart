@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/api_config.dart';
 import '../config/app_constants.dart';
@@ -91,17 +92,38 @@ class ApiService {
         throw _fromStatus(resp.statusCode, 'Hatim API hatası.');
       });
 
-  Future<List<Paket>> fetchPackages() => _withRetry('fetchPackages', () async {
+  static const _kPackagesCacheKey = 'packages_cache';
+
+  Future<List<Paket>> fetchPackages() async {
+    try {
+      return await _withRetry('fetchPackages', () async {
         final resp = await _client
             .get(Uri.parse(ApiConfig.packagesEndpoint()), headers: _headers)
             .timeout(kApiTimeout);
         if (resp.statusCode == 200) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(_kPackagesCacheKey, resp.body);
           return (jsonDecode(resp.body) as List<dynamic>)
               .map((e) => Paket.fromJson(e as Map<String, dynamic>))
               .toList();
         }
         throw _fromStatus(resp.statusCode, 'Paket listesi alınamadı.');
       });
+    } on ApiException catch (e) {
+      // statusCode == null → ağ katmanı hatası (SocketException, TlsException vb.)
+      if (e.statusCode == null) {
+        final prefs = await SharedPreferences.getInstance();
+        final cached = prefs.getString(_kPackagesCacheKey);
+        if (cached != null) {
+          AppLogger.warning('fetchPackages: ağ hatası, önbellekten yükleniyor');
+          return (jsonDecode(cached) as List<dynamic>)
+              .map((e) => Paket.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
+      rethrow;
+    }
+  }
 
   Future<PaketDetay> fetchPackageDetail(String id) => _withRetry('fetchPackageDetail', () async {
         final resp = await _client

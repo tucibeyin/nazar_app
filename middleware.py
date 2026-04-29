@@ -1,5 +1,6 @@
 """Nazar API — Pure ASGI middleware sınıfları."""
 
+import secrets
 import time
 import uuid
 
@@ -7,6 +8,7 @@ import structlog
 from fastapi.responses import JSONResponse
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from structlog.contextvars import bind_contextvars, clear_contextvars
 
 log = structlog.get_logger()
 
@@ -25,6 +27,7 @@ class TimingMiddleware:
         start = time.perf_counter()
         status_code = 500
         request_id = uuid.uuid4().hex[:12]
+        bind_contextvars(request_id=request_id)
 
         async def send_wrapper(message: Message) -> None:
             nonlocal status_code
@@ -36,16 +39,18 @@ class TimingMiddleware:
                 headers.append("X-Request-ID", request_id)
             await send(message)
 
-        await self.app(scope, receive, send_wrapper)
-
-        log.info(
-            "req",
-            method=scope.get("method", ""),
-            path=scope.get("path", ""),
-            status=status_code,
-            ms=round((time.perf_counter() - start) * 1000, 2),
-            rid=request_id,
-        )
+        try:
+            await self.app(scope, receive, send_wrapper)
+        finally:
+            log.info(
+                "req",
+                method=scope.get("method", ""),
+                path=scope.get("path", ""),
+                status=status_code,
+                ms=round((time.perf_counter() - start) * 1000, 2),
+                rid=request_id,
+            )
+            clear_contextvars()
 
 
 class ApiKeyMiddleware:
@@ -73,7 +78,7 @@ class ApiKeyMiddleware:
             return
 
         headers = Headers(scope=scope)
-        if headers.get("x-api-key", "") != self._api_key:
+        if not secrets.compare_digest(headers.get("x-api-key", ""), self._api_key):
             resp = JSONResponse(
                 {"detail": "Yetkisiz erişim. Geçerli bir X-API-Key gerekli."},
                 status_code=401,
