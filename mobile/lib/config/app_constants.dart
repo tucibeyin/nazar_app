@@ -34,7 +34,7 @@ const kScreenPaddingH = 20.0;
 const kButtonPaddingV = 16.0;
 const kTezhipBandH    = 36.0;
 const kMuqarnasH      = 48.0;
-const kTesbihH        = 62.0;
+const kTesbihH        = 90.0;
 const kMosqueSilH     = 130.0;
 const kCameraFrameSize = 280.0; // dairesel kamera çerçevesi çapı
 

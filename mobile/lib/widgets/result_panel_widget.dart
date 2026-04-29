@@ -20,9 +20,6 @@ class ResultPanelWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? kDarkPanel : kParchment;
-    final shadowColor = isDark ? kGold.withValues(alpha: 0.10) : kGreen.withValues(alpha: 0.12);
-    final glowColor = isDark ? kGold.withValues(alpha: 0.22) : kGold.withValues(alpha: 0.18);
 
     return TweenAnimationBuilder<double>(
       key: ValueKey(ayet.id),
@@ -41,36 +38,75 @@ class ResultPanelWidget extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(kScreenPaddingH, 4, kScreenPaddingH, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildUnvan(isDark),
+            _buildPanel(isDark),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Unvan: sure adı başlık şeridi ─────────────────────────────────────────
+
+  Widget _buildUnvan(bool isDark) {
+    final bg = isDark ? const Color(0xFF0A2416) : kGreen;
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+      child: Container(
+        decoration: BoxDecoration(
+          color: bg,
+          border: Border(
+            bottom: BorderSide(color: kGold.withValues(alpha: 0.65), width: 1.5),
+          ),
+        ),
         child: Stack(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: shadowColor,
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
-                  BoxShadow(
-                    color: glowColor,
-                    blurRadius: 12,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildHeader(isDark),
-                  _buildContent(isDark),
-                ],
-              ),
-            ),
             const Positioned.fill(
               child: IgnorePointer(
-                child: CustomPaint(painter: LevhaBorderPainter()),
+                child: CustomPaint(
+                  painter: LevhaHeaderPainter(drawBackground: false),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              child: Row(
+                children: [
+                  const SizedBox(width: 38),
+                  Expanded(
+                    child: Text(
+                      ayet.sureIsim,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.cormorantGaramond(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: kGold,
+                        letterSpacing: 1.4,
+                        shadows: const [
+                          Shadow(color: Colors.black38, blurRadius: 3),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 38,
+                    height: 38,
+                    child: GestureDetector(
+                      onTap: onToggleAudio,
+                      child: Icon(
+                        isPlaying
+                            ? Icons.pause_circle_filled
+                            : Icons.play_circle_filled,
+                        color: kGold,
+                        size: 36,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -79,55 +115,55 @@ class ResultPanelWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(bool isDark) {
-    final textColor = isDark ? kDarkSubtext : kGold.withValues(alpha: 0.92);
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
-      child: SizedBox(
-        height: 42,
-        child: Stack(
-          children: [
-            const Positioned.fill(child: CustomPaint(painter: LevhaHeaderPainter())),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      ayet.sureIsim,
-                      style: GoogleFonts.cormorantGaramond(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: onToggleAudio,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: Icon(
-                      isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
-                      color: kGold,
-                      size: 34,
-                    ),
-                  ),
-                ],
+  // ── İçerik paneli (LevhaBorderPainter artık sure ismiyle çakışmaz) ────────
+
+  Widget _buildPanel(bool isDark) {
+    final bgColor = isDark ? kDarkPanel : kParchment;
+    final shadowColor =
+        isDark ? kGold.withValues(alpha: 0.10) : kGreen.withValues(alpha: 0.12);
+    final glowColor =
+        isDark ? kGold.withValues(alpha: 0.22) : kGold.withValues(alpha: 0.18);
+
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius:
+                const BorderRadius.vertical(bottom: Radius.circular(18)),
+            boxShadow: [
+              BoxShadow(
+                color: shadowColor,
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
-            ),
-          ],
+              BoxShadow(
+                color: glowColor,
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: _buildContent(isDark),
         ),
-      ),
+        const Positioned.fill(
+          child: IgnorePointer(
+            child: CustomPaint(painter: LevhaBorderPainter()),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildContent(bool isDark) {
     final arabicColor = isDark ? kDarkText : const Color(0xFF1A1A1A);
-    final mealColor = isDark ? kDarkText.withValues(alpha: 0.88) : const Color(0xFF3D3420);
+    final mealColor = isDark
+        ? kDarkText.withValues(alpha: 0.88)
+        : const Color(0xFF3D3420);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+      // top=32: LevhaBorderPainter köşe süsü y=29'a kadar uzanır, metni geçiyor
+      padding: const EdgeInsets.fromLTRB(20, 32, 20, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

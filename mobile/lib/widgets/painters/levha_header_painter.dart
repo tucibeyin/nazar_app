@@ -5,14 +5,17 @@ import 'package:flutter/material.dart';
 import '../../config/app_constants.dart';
 
 class LevhaHeaderPainter extends CustomPainter {
-  const LevhaHeaderPainter();
+  final bool drawBackground;
+  const LevhaHeaderPainter({this.drawBackground = true});
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()..color = kGreen,
-    );
+    if (drawBackground) {
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        Paint()..color = kGreen,
+      );
+    }
 
     canvas.drawRect(
       Rect.fromLTWH(0, size.height - 3, size.width, 1.5),
