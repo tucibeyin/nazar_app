@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/logger.dart';
 import '../repositories/ayet_repository.dart';
 import '../services/api_service.dart';
 import '../services/audio_service.dart';
@@ -68,7 +69,7 @@ final connectivityProvider = StateNotifierProvider<_ConnectivityNotifier, bool>(
 // ─── Tema Provider ────────────────────────────────────────────────────────────
 
 class _ThemeNotifier extends StateNotifier<ThemeMode> {
-  _ThemeNotifier() : super(ThemeMode.light);
+  _ThemeNotifier() : super(ThemeMode.system);
 
   void toggle() => state =
       state == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
@@ -90,20 +91,32 @@ class HatimProgressNotifier extends StateNotifier<int> {
   }
 
   Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) state = prefs.getInt(_key) ?? 0;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (mounted) state = prefs.getInt(_key) ?? 0;
+    } catch (e, st) {
+      AppLogger.error('HatimProgressNotifier._load', e, st);
+    }
   }
 
   Future<void> advance(int total) async {
     state = (state + 1) % total;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_key, state);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_key, state);
+    } catch (e, st) {
+      AppLogger.error('HatimProgressNotifier.advance', e, st);
+    }
   }
 
   Future<void> reset() async {
     state = 0;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_key, 0);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_key, 0);
+    } catch (e, st) {
+      AppLogger.error('HatimProgressNotifier.reset', e, st);
+    }
   }
 }
 

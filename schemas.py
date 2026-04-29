@@ -17,6 +17,16 @@ class AyetResponse(BaseModel):
             raise ValueError("mp3_url boş olamaz")
         return v
 
+    @classmethod
+    def from_raw(cls, raw: dict) -> "AyetResponse":
+        return cls(
+            id=int(raw.get("id", 0) or 0),
+            sure_isim=str(raw.get("sure_isim", "")),
+            arapca=str(raw.get("arapca", "")),
+            meal=str(raw.get("meal", "")),
+            mp3_url=str(raw.get("mp3_url", "")),
+        )
+
 
 class HatimAyetResponse(AyetResponse):
     index: int

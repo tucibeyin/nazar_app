@@ -1,4 +1,5 @@
 import 'ayet.dart';
+import '../utils/json_ext.dart';
 
 class HatimAyet {
   final Ayet ayet;
@@ -13,7 +14,7 @@ class HatimAyet {
 
   factory HatimAyet.fromJson(Map<String, dynamic> json) => HatimAyet(
         ayet: Ayet.fromJson(json),
-        index: (json['index'] is num) ? (json['index'] as num).toInt() : 0,
-        total: (json['total'] is num) ? (json['total'] as num).toInt() : 6236,
+        index: json.intOf('index'),
+        total: json.intOf('total', 6236),
       );
 }

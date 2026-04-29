@@ -29,6 +29,7 @@ log = structlog.get_logger()
 
 # ─── Rate Limiter ─────────────────────────────────────────────────────────────
 
+_RATE_LIMIT = os.getenv("RATE_LIMIT", "30/minute")
 limiter = Limiter(key_func=get_remote_address)
 
 # ─── App ──────────────────────────────────────────────────────────────────────
@@ -72,7 +73,7 @@ async def health_check() -> HealthResponse:
 
 
 @app.get("/api/nazar/{hash_sayisi}", response_model=AyetResponse, tags=["nazar"])
-@limiter.limit(os.getenv("RATE_LIMIT", "30/minute"))
+@limiter.limit(_RATE_LIMIT)
 async def get_ayet(
     request: Request, response: Response, hash_sayisi: int
 ) -> AyetResponse:
@@ -86,17 +87,11 @@ async def get_ayet(
 
     response.headers["Cache-Control"] = "public, max-age=86400, immutable"
     log.info("ayet_served", index=secilen_index, remote=get_remote_address(request))
-    return AyetResponse(
-        id=int(raw.get("id", 0) or 0),
-        sure_isim=str(raw.get("sure_isim", "")),
-        arapca=str(raw.get("arapca", "")),
-        meal=str(raw.get("meal", "")),
-        mp3_url=str(raw.get("mp3_url", "")),
-    )
+    return AyetResponse.from_raw(raw)
 
 
 @app.get("/api/hatim/{index}", response_model=HatimAyetResponse, tags=["hatim"])
-@limiter.limit(os.getenv("RATE_LIMIT", "30/minute"))
+@limiter.limit(_RATE_LIMIT)
 async def get_hatim_ayet(
     request: Request, response: Response, index: int
 ) -> HatimAyetResponse:
@@ -113,16 +108,12 @@ async def get_hatim_ayet(
     return HatimAyetResponse(
         index=actual,
         total=len(AYETLER),
-        id=int(raw.get("id", 0) or 0),
-        sure_isim=str(raw.get("sure_isim", "")),
-        arapca=str(raw.get("arapca", "")),
-        meal=str(raw.get("meal", "")),
-        mp3_url=str(raw.get("mp3_url", "")),
+        **AyetResponse.from_raw(raw).model_dump(),
     )
 
 
 @app.get("/api/packages", response_model=list[PackageResponse], tags=["packages"])
-@limiter.limit(os.getenv("RATE_LIMIT", "30/minute"))
+@limiter.limit(_RATE_LIMIT)
 async def get_packages(request: Request, response: Response) -> list[PackageResponse]:
     response.headers["Cache-Control"] = "public, max-age=3600"
     return PACKAGES_RESPONSE  # type: ignore[return-value]
@@ -131,7 +122,7 @@ async def get_packages(request: Request, response: Response) -> list[PackageResp
 @app.get(
     "/api/packages/{package_id}", response_model=PackageDetailResponse, tags=["packages"]
 )
-@limiter.limit(os.getenv("RATE_LIMIT", "30/minute"))
+@limiter.limit(_RATE_LIMIT)
 async def get_package_detail(
     request: Request, response: Response, package_id: str
 ) -> PackageDetailResponse:
@@ -140,13 +131,7 @@ async def get_package_detail(
         raise HTTPException(status_code=404, detail="Paket bulunamadı.")
 
     ayetler = [
-        AyetResponse(
-            id=int(raw.get("id", 0) or 0),
-            sure_isim=str(raw.get("sure_isim", "")),
-            arapca=str(raw.get("arapca", "")),
-            meal=str(raw.get("meal", "")),
-            mp3_url=str(raw.get("mp3_url", "")),
-        )
+        AyetResponse.from_raw(raw)
         for ref in paket["ayet_refs"]
         if (raw := ayet_lookup.get(ref))
     ]

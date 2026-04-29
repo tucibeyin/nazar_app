@@ -1,3 +1,5 @@
+import '../utils/json_ext.dart';
+
 class Ayet {
   final int id;
   final String sureIsim;
@@ -13,15 +15,16 @@ class Ayet {
     required this.mp3Url,
   });
 
-  factory Ayet.fromJson(Map<String, dynamic> json) => Ayet(
-        id: (json['id'] is num) ? (json['id'] as num).toInt() : 0,
-        sureIsim: (json['sure_isim'] is String) ? (json['sure_isim'] as String).substring(0, _clamp(json['sure_isim'] as String)) : '',
-        arapca: (json['arapca'] is String) ? json['arapca'] as String : '',
-        meal: (json['meal'] is String) ? json['meal'] as String : '',
-        mp3Url: (json['mp3_url'] is String) ? json['mp3_url'] as String : '',
-      );
-
-  static int _clamp(String s) => s.length > 200 ? 200 : s.length;
+  factory Ayet.fromJson(Map<String, dynamic> json) {
+    final sureIsim = json.strOf('sure_isim');
+    return Ayet(
+      id: json.intOf('id'),
+      sureIsim: sureIsim.length > 200 ? sureIsim.substring(0, 200) : sureIsim,
+      arapca: json.strOf('arapca'),
+      meal: json.strOf('meal'),
+      mp3Url: json.strOf('mp3_url'),
+    );
+  }
 
   Ayet copyWith({
     int? id,

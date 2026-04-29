@@ -1,4 +1,5 @@
 import 'ayet.dart';
+import '../utils/json_ext.dart';
 
 class Paket {
   final String id;
@@ -16,13 +17,11 @@ class Paket {
   });
 
   factory Paket.fromJson(Map<String, dynamic> json) => Paket(
-        id: json['id'] as String? ?? '',
-        isim: json['isim'] as String? ?? '',
-        aciklama: json['aciklama'] as String? ?? '',
-        icon: json['icon'] as String? ?? '',
-        ayetSayisi: (json['ayet_sayisi'] is num)
-            ? (json['ayet_sayisi'] as num).toInt()
-            : 0,
+        id: json.strOf('id'),
+        isim: json.strOf('isim'),
+        aciklama: json.strOf('aciklama'),
+        icon: json.strOf('icon'),
+        ayetSayisi: json.intOf('ayet_sayisi'),
       );
 
   Map<String, dynamic> toJson() => {
@@ -57,10 +56,10 @@ class PaketDetay {
   });
 
   factory PaketDetay.fromJson(Map<String, dynamic> json) => PaketDetay(
-        id: json['id'] as String? ?? '',
-        isim: json['isim'] as String? ?? '',
-        aciklama: json['aciklama'] as String? ?? '',
-        icon: json['icon'] as String? ?? '',
+        id: json.strOf('id'),
+        isim: json.strOf('isim'),
+        aciklama: json.strOf('aciklama'),
+        icon: json.strOf('icon'),
         ayetler: (json['ayetler'] as List<dynamic>? ?? [])
             .map((e) => Ayet.fromJson(e as Map<String, dynamic>))
             .toList(),
