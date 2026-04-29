@@ -5,6 +5,20 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import '../config/api_config.dart';
 import '../core/logger.dart';
 
+// 300 ses dosyası, 30 gün TTL — sınırsız büyümesini engeller.
+class _AudioCacheManager extends CacheManager {
+  static const _key = 'nazar_audio';
+  static final _AudioCacheManager _instance = _AudioCacheManager._();
+  factory _AudioCacheManager() => _instance;
+
+  _AudioCacheManager._()
+      : super(Config(
+          _key,
+          stalePeriod: const Duration(days: 30),
+          maxNrOfCacheObjects: 300,
+        ));
+}
+
 class AudioService {
   final AudioPlayer _player = AudioPlayer();
 
@@ -53,7 +67,7 @@ class AudioService {
     try {
       final url = ApiConfig.audioUrl(mp3Path);
       AppLogger.info('AudioService.play');
-      final file = await DefaultCacheManager().getSingleFile(url);
+      final file = await _AudioCacheManager().getSingleFile(url);
       await _player.play(DeviceFileSource(file.path));
     } catch (e, st) {
       AppLogger.error('AudioService.play failed', e, st);
@@ -65,7 +79,7 @@ class AudioService {
   void prefetch(String mp3Path) {
     if (mp3Path.isEmpty) return;
     final url = ApiConfig.audioUrl(mp3Path);
-    DefaultCacheManager().downloadFile(url).ignore();
+    _AudioCacheManager().downloadFile(url).ignore();
   }
 
   Future<void> pause() => _player.pause();

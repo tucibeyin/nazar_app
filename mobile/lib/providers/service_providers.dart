@@ -51,8 +51,10 @@ class _ConnectivityNotifier extends StateNotifier<bool> {
     });
   }
 
+  // any pozitif sonuç = çevrimiçi; salt none = çevrimdışı.
+  // !contains(none) YANLIŞ: WiFi+VPN gibi karma listede none olsa da online sayılabilir.
   static bool _isOnline(List<ConnectivityResult> results) =>
-      !results.contains(ConnectivityResult.none);
+      results.any((r) => r != ConnectivityResult.none);
 
   @override
   void dispose() {

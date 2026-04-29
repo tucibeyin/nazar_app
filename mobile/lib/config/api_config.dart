@@ -10,9 +10,9 @@ class ApiConfig {
   // Boşsa istek başlığına eklenmez.
   static const String apiKey = String.fromEnvironment('API_KEY', defaultValue: '');
 
-  static String nazarEndpoint(int hashInt) => '$baseUrl/api/nazar/$hashInt';
-  static String hatimEndpoint(int index) => '$baseUrl/api/hatim/$index';
-  static String packagesEndpoint() => '$baseUrl/api/packages';
-  static String packageDetailEndpoint(String id) => '$baseUrl/api/packages/$id';
+  static String nazarEndpoint(int hashInt) => '$baseUrl/api/v1/nazar/$hashInt';
+  static String hatimEndpoint(int index) => '$baseUrl/api/v1/hatim/$index';
+  static String packagesEndpoint() => '$baseUrl/api/v1/packages';
+  static String packageDetailEndpoint(String id) => '$baseUrl/api/v1/packages/$id';
   static String audioUrl(String mp3Path) => '$baseUrl$mp3Path';
 }

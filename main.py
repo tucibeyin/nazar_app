@@ -1,6 +1,7 @@
 """Nazar API — FastAPI uygulama girişi ve endpoint tanımları."""
 
 import os
+import sys
 
 import structlog
 from dotenv import load_dotenv
@@ -24,6 +25,19 @@ from schemas import (
 )
 
 load_dotenv()
+
+# ─── Loglama — üretimde JSON, geliştirmede renkli konsol ─────────────────────
+_is_dev = os.getenv("DEV_MODE", "").lower() in ("1", "true", "yes")
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso", utc=True),
+        structlog.dev.ConsoleRenderer() if _is_dev else structlog.processors.JSONRenderer(),
+    ],
+    logger_factory=structlog.PrintLoggerFactory(sys.stdout),
+    cache_logger_on_first_use=True,
+)
 
 log = structlog.get_logger()
 
@@ -72,7 +86,7 @@ async def health_check() -> HealthResponse:
     )
 
 
-@app.get("/api/nazar/{hash_sayisi}", response_model=AyetResponse, tags=["nazar"])
+@app.get("/api/v1/nazar/{hash_sayisi}", response_model=AyetResponse, tags=["nazar"])
 @limiter.limit(_RATE_LIMIT)
 async def get_ayet(
     request: Request, response: Response, hash_sayisi: int
@@ -90,7 +104,7 @@ async def get_ayet(
     return AyetResponse.from_raw(raw)
 
 
-@app.get("/api/hatim/{index}", response_model=HatimAyetResponse, tags=["hatim"])
+@app.get("/api/v1/hatim/{index}", response_model=HatimAyetResponse, tags=["hatim"])
 @limiter.limit(_RATE_LIMIT)
 async def get_hatim_ayet(
     request: Request, response: Response, index: int
@@ -112,7 +126,7 @@ async def get_hatim_ayet(
     )
 
 
-@app.get("/api/packages", response_model=list[PackageResponse], tags=["packages"])
+@app.get("/api/v1/packages", response_model=list[PackageResponse], tags=["packages"])
 @limiter.limit(_RATE_LIMIT)
 async def get_packages(request: Request, response: Response) -> list[PackageResponse]:
     response.headers["Cache-Control"] = "public, max-age=3600"
@@ -120,7 +134,7 @@ async def get_packages(request: Request, response: Response) -> list[PackageResp
 
 
 @app.get(
-    "/api/packages/{package_id}", response_model=PackageDetailResponse, tags=["packages"]
+    "/api/v1/packages/{package_id}", response_model=PackageDetailResponse, tags=["packages"]
 )
 @limiter.limit(_RATE_LIMIT)
 async def get_package_detail(

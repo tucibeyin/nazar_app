@@ -100,19 +100,19 @@ class TestHealthEndpoint:
 
 class TestApiKeyAuth:
     def test_missing_api_key_returns_401(self, client_with_key: TestClient) -> None:
-        r = client_with_key.get("/api/nazar/0")
+        r = client_with_key.get("/api/v1/nazar/0")
         assert r.status_code == 401
 
     def test_wrong_api_key_returns_401(self, client_with_key: TestClient) -> None:
-        r = client_with_key.get("/api/nazar/0", headers={"X-API-Key": "yanlis-key"})
+        r = client_with_key.get("/api/v1/nazar/0", headers={"X-API-Key": "yanlis-key"})
         assert r.status_code == 401
 
     def test_correct_api_key_returns_200(self, client_with_key: TestClient) -> None:
-        r = client_with_key.get("/api/nazar/0", headers={"X-API-Key": "test-secret-key"})
+        r = client_with_key.get("/api/v1/nazar/0", headers={"X-API-Key": "test-secret-key"})
         assert r.status_code == 200
 
     def test_no_api_key_env_allows_open_access(self, client: TestClient) -> None:
-        r = client.get("/api/nazar/0")
+        r = client.get("/api/v1/nazar/0")
         assert r.status_code == 200
 
 
@@ -120,50 +120,50 @@ class TestApiKeyAuth:
 
 class TestNazarEndpoint:
     def test_hash_0_returns_first_ayet(self, client: TestClient) -> None:
-        r = client.get("/api/nazar/0")
+        r = client.get("/api/v1/nazar/0")
         assert r.status_code == 200
         assert r.json()["id"] == MOCK_AYETLER[0]["id"]
 
     def test_modulo_wraps_correctly(self, client: TestClient) -> None:
         count = len(MOCK_AYETLER)
-        r = client.get(f"/api/nazar/{count}")
+        r = client.get(f"/api/v1/nazar/{count}")
         assert r.status_code == 200
         assert r.json()["id"] == MOCK_AYETLER[0]["id"]
 
     def test_large_hash_does_not_crash(self, client: TestClient) -> None:
-        assert client.get("/api/nazar/9999999999").status_code == 200
+        assert client.get("/api/v1/nazar/9999999999").status_code == 200
 
     def test_response_has_required_fields(self, client: TestClient) -> None:
-        data = client.get("/api/nazar/1").json()
+        data = client.get("/api/v1/nazar/1").json()
         for field in ("id", "sure_isim", "arapca", "meal", "mp3_url"):
             assert field in data, f"Eksik alan: {field}"
 
     def test_negative_hash_returns_422(self, client: TestClient) -> None:
-        assert client.get("/api/nazar/-1").status_code == 422
+        assert client.get("/api/v1/nazar/-1").status_code == 422
 
     def test_string_hash_returns_422(self, client: TestClient) -> None:
-        assert client.get("/api/nazar/abc").status_code == 422
+        assert client.get("/api/v1/nazar/abc").status_code == 422
 
     def test_response_has_timing_header(self, client: TestClient) -> None:
-        r = client.get("/api/nazar/0")
+        r = client.get("/api/v1/nazar/0")
         assert "x-response-time" in r.headers
 
     def test_response_has_cache_control(self, client: TestClient) -> None:
-        r = client.get("/api/nazar/0")
+        r = client.get("/api/v1/nazar/0")
         assert "public" in r.headers.get("cache-control", "")
 
     def test_mp3_url_not_empty(self, client: TestClient) -> None:
-        data = client.get("/api/nazar/0").json()
+        data = client.get("/api/v1/nazar/0").json()
         assert data["mp3_url"], "mp3_url boş olmamalı"
 
     def test_boundary_max_int(self, client: TestClient) -> None:
-        r = client.get("/api/nazar/9223372036854775807")
+        r = client.get("/api/v1/nazar/9223372036854775807")
         assert r.status_code == 200
 
     def test_each_ayet_reachable(self, client: TestClient) -> None:
         ids_seen = set()
         for i in range(len(MOCK_AYETLER)):
-            data = client.get(f"/api/nazar/{i}").json()
+            data = client.get(f"/api/v1/nazar/{i}").json()
             ids_seen.add(data["id"])
         assert ids_seen == {a["id"] for a in MOCK_AYETLER}
 
@@ -172,21 +172,21 @@ class TestNazarEndpoint:
 
 class TestHatimEndpoint:
     def test_returns_index_and_total(self, client: TestClient) -> None:
-        r = client.get("/api/hatim/0")
+        r = client.get("/api/v1/hatim/0")
         assert r.status_code == 200
         data = r.json()
         assert data["index"] == 0
         assert data["total"] == len(MOCK_AYETLER)
 
     def test_modulo_wraps(self, client: TestClient) -> None:
-        r = client.get(f"/api/hatim/{len(MOCK_AYETLER)}")
+        r = client.get(f"/api/v1/hatim/{len(MOCK_AYETLER)}")
         assert r.json()["index"] == 0
 
     def test_negative_returns_422(self, client: TestClient) -> None:
-        assert client.get("/api/hatim/-1").status_code == 422
+        assert client.get("/api/v1/hatim/-1").status_code == 422
 
     def test_cache_control_present(self, client: TestClient) -> None:
-        r = client.get("/api/hatim/0")
+        r = client.get("/api/v1/hatim/0")
         assert "public" in r.headers.get("cache-control", "")
 
 
@@ -194,22 +194,22 @@ class TestHatimEndpoint:
 
 class TestPackagesEndpoint:
     def test_returns_list(self, client: TestClient) -> None:
-        r = client.get("/api/packages")
+        r = client.get("/api/v1/packages")
         assert r.status_code == 200
         assert isinstance(r.json(), list)
         assert len(r.json()) > 0
 
     def test_package_has_required_fields(self, client: TestClient) -> None:
-        data = client.get("/api/packages").json()[0]
+        data = client.get("/api/v1/packages").json()[0]
         for field in ("id", "isim", "aciklama", "icon", "ayet_sayisi"):
             assert field in data, f"Eksik alan: {field}"
 
     def test_cache_control_present(self, client: TestClient) -> None:
-        r = client.get("/api/packages")
+        r = client.get("/api/v1/packages")
         assert "public" in r.headers.get("cache-control", "")
 
     def test_known_package_detail(self, client: TestClient) -> None:
-        r = client.get("/api/packages/fatiha")
+        r = client.get("/api/v1/packages/fatiha")
         assert r.status_code == 200
         data = r.json()
         assert data["id"] == "fatiha"
@@ -217,15 +217,15 @@ class TestPackagesEndpoint:
 
     def test_fatiha_ayetler_from_mock(self, client: TestClient) -> None:
         # MOCK_AYETLER'de (1,1) ve (1,2) var — fatiha paketi bunları bulmalı.
-        r = client.get("/api/packages/fatiha")
+        r = client.get("/api/v1/packages/fatiha")
         assert r.status_code == 200
         assert len(r.json()["ayetler"]) == 2
 
     def test_unknown_package_returns_404(self, client: TestClient) -> None:
-        assert client.get("/api/packages/bilinmeyen-paket").status_code == 404
+        assert client.get("/api/v1/packages/bilinmeyen-paket").status_code == 404
 
     def test_package_detail_cache_control(self, client: TestClient) -> None:
-        r = client.get("/api/packages/fatiha")
+        r = client.get("/api/v1/packages/fatiha")
         assert "public" in r.headers.get("cache-control", "")
 
 
@@ -234,5 +234,5 @@ class TestPackagesEndpoint:
 class TestEmptyDatabase:
     def test_empty_db_returns_503(self) -> None:
         c = _make_client(ayetler=[])
-        r = c.get("/api/nazar/0")
+        r = c.get("/api/v1/nazar/0")
         assert r.status_code == 503

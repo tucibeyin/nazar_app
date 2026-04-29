@@ -24,9 +24,13 @@ class ApiException implements Exception {
 
 class ApiService {
   final http.Client _client;
+  // Testlerde gecikmeyi sıfıra indirmek için enjekte edilebilir; null = üretim değeri.
+  final Duration Function(int attempt)? _retryDelay;
   static final _rng = math.Random();
 
-  ApiService({http.Client? client}) : _client = client ?? http.Client();
+  ApiService({http.Client? client, Duration Function(int attempt)? retryDelay})
+      : _client = client ?? http.Client(),
+        _retryDelay = retryDelay;
 
   Map<String, String> get _headers => {
         'Accept': 'application/json',
@@ -41,8 +45,10 @@ class ApiService {
       try {
         AppLogger.info('$tag attempt $attempt');
         return await fn();
-      } on ApiException {
-        rethrow;
+      } on ApiException catch (e) {
+        // 4xx → anında fırlat (client hatası, retry fayda sağlamaz)
+        if (e.statusCode != null && e.statusCode! < 500) rethrow;
+        lastError = e;
       } on SocketException {
         lastError = const ApiException('İnternet bağlantısı bulunamadı.');
       } on TlsException {
@@ -58,7 +64,9 @@ class ApiService {
         lastError = ApiException('Beklenmedik hata: $e');
       }
       if (attempt < kMaxRetries) {
-        final delay = kRetryBackoff * attempt + Duration(milliseconds: _rng.nextInt(500));
+        final delay = _retryDelay != null
+            ? _retryDelay(attempt)
+            : kRetryBackoff * attempt + Duration(milliseconds: _rng.nextInt(500));
         AppLogger.warning('$tag retry in ${delay.inMilliseconds}ms (attempt $attempt)');
         await Future<void>.delayed(delay);
       }

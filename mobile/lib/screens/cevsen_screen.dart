@@ -601,9 +601,22 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
     required bool isPlaying,
     required bool cevsenEmpty,
   }) {
-    return GestureDetector(
-      onTap: (isLoading || cevsenEmpty) ? null : _togglePlayPause,
-      child: AnimatedContainer(
+    final label = cevsenEmpty
+        ? 'Paket ekle'
+        : isLoading
+            ? 'Yükleniyor'
+            : _playState == _PlayState.error
+                ? 'Tekrar dene'
+                : isPlaying
+                    ? 'Durdur'
+                    : 'Oynat';
+    return Semantics(
+      button: true,
+      label: label,
+      enabled: !isLoading && !cevsenEmpty,
+      child: GestureDetector(
+        onTap: (isLoading || cevsenEmpty) ? null : _togglePlayPause,
+        child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         width: 60, height: 60,
         decoration: BoxDecoration(
@@ -633,6 +646,7 @@ class _CevsenScreenState extends ConsumerState<CevsenScreen>
                 color: cevsenEmpty ? kGold.withValues(alpha: 0.3) : kGold,
                 size: 32,
               ),
+        ),
       ),
     );
   }

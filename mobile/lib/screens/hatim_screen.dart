@@ -184,6 +184,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
           painter: TezhipBandPainter(isTop: true),
         ),
         IconButton(
+          tooltip: 'Geri',
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kGold, size: 20),
         ),
@@ -449,9 +450,13 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
               style: GoogleFonts.cormorantGaramond(fontSize: 12, color: kGreen, letterSpacing: 0.5),
             ),
             const SizedBox(width: 10),
-            GestureDetector(
-              onTap: () { HapticFeedback.selectionClick(); setState(() => _repeat = !_repeat); },
-              child: Icon(Icons.repeat_rounded, size: 15, color: _repeat ? kGold : kGold.withValues(alpha: 0.35)),
+            Semantics(
+              button: true,
+              label: _repeat ? 'Tekrarı kapat' : 'Tekrarı aç',
+              child: GestureDetector(
+                onTap: () { HapticFeedback.selectionClick(); setState(() => _repeat = !_repeat); },
+                child: Icon(Icons.repeat_rounded, size: 15, color: _repeat ? kGold : kGold.withValues(alpha: 0.35)),
+              ),
             ),
             const SizedBox(width: 8),
             buildSleepTimerButton(() => showSleepTimerDialog(context, _stopPlayback)),
@@ -472,9 +477,20 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
   }
 
   Widget _buildCirclePlayButton(bool isLoading, bool isPlaying) {
-    return GestureDetector(
-      onTap: isLoading ? null : _onPlayPause,
-      child: AnimatedContainer(
+    final label = isLoading
+        ? 'Yükleniyor'
+        : _hatimState == _HatimState.error
+            ? 'Tekrar dene'
+            : isPlaying
+                ? 'Durdur'
+                : 'Oynat';
+    return Semantics(
+      button: true,
+      label: label,
+      enabled: !isLoading,
+      child: GestureDetector(
+        onTap: isLoading ? null : _onPlayPause,
+        child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         width: 64, height: 64,
         decoration: BoxDecoration(
@@ -501,6 +517,7 @@ class _HatimScreenState extends ConsumerState<HatimScreen>
                 color: kGold,
                 size: 34,
               ),
+        ),
       ),
     );
   }

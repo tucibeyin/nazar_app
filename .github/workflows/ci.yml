@@ -21,10 +21,16 @@ jobs:
           cache: pip
 
       - name: Bağımlılıkları yükle
-        run: pip install -r requirements.txt pytest httpx
+        run: pip install -r requirements-dev.txt
 
-      - name: Backend testlerini çalıştır
-        run: pytest tests/ -v
+      - name: Tip kontrolü (mypy)
+        run: mypy . --config-file mypy.ini
+
+      - name: Güvenlik taraması (pip-audit)
+        run: pip-audit -r requirements.txt
+
+      - name: Backend testleri + coverage (≥80%)
+        run: pytest tests/ -v --cov=. --cov-report=term-missing --cov-fail-under=80
 
   # ─── Flutter Lint + Test ──────────────────────────────────────────────────────
   flutter-test:
@@ -49,8 +55,17 @@ jobs:
       - name: Lint
         run: flutter analyze --fatal-infos
 
-      - name: Unit testleri çalıştır
+      - name: Unit testleri + coverage
         run: flutter test --coverage
+
+      - name: Coverage eşiği (≥60%)
+        run: |
+          total=$(grep -E "^DA:" coverage/lcov.info | wc -l)
+          covered=$(grep -E "^DA:[0-9]+,[^0]" coverage/lcov.info | wc -l)
+          if [ "$total" -eq 0 ]; then echo "Coverage verisi yok" && exit 1; fi
+          pct=$((covered * 100 / total))
+          echo "Coverage: $covered/$total satır ($pct%)"
+          [ "$pct" -ge 60 ] || (echo "✗ Coverage $pct% < %60 eşiği" && exit 1)
 
   # ─── iOS Build (only on main) ─────────────────────────────────────────────────
   ios-build:
@@ -74,12 +89,11 @@ jobs:
         run: flutter pub get
 
       - name: iOS release build
-        run: |
-          flutter build ios --release --no-codesign
+        run: flutter build ios --release --no-codesign
 
   # ─── Android Build (only on main) ────────────────────────────────────────────
   android-build:
-    name: Android Build
+    name: Android Build (AAB)
     needs: flutter-test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -104,5 +118,5 @@ jobs:
       - name: Bağımlılıkları yükle
         run: flutter pub get
 
-      - name: Android APK build
-        run: flutter build apk --release
+      - name: Android App Bundle build (Play Store formatı)
+        run: flutter build appbundle --release

@@ -366,6 +366,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           child: Row(
             children: [
               IconButton(
+                tooltip: 'Menüyü aç',
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
                 padding: const EdgeInsets.all(4),
                 constraints: const BoxConstraints(),
@@ -399,6 +400,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 ),
               ),
               IconButton(
+                tooltip: 'Kamerayı çevir',
                 onPressed: _viewState == AppViewState.camera ? _switchCamera : null,
                 icon: Icon(
                   Icons.flip_camera_ios_rounded,

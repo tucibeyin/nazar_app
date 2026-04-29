@@ -14,7 +14,10 @@ class AyetRepository {
   Future<Ayet> fetchAyet(int hashInt) async {
     if (_cache.containsKey(hashInt)) {
       AppLogger.info('AyetRepository cache hit');
-      return _cache[hashInt]!;
+      // LRU: erişilen key sona taşınır; _evictIfNeeded ilk key'i (en eskiyi) siler.
+      final ayet = _cache.remove(hashInt)!;
+      _cache[hashInt] = ayet;
+      return ayet;
     }
     final ayet = await _api.fetchAyet(hashInt);
     _evictIfNeeded();
