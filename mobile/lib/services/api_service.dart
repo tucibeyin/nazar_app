@@ -13,6 +13,7 @@ import '../models/ayet.dart';
 import '../models/esma.dart';
 import '../models/hatim_ayet.dart';
 import '../models/paket.dart';
+import '../models/prayer_times.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -142,6 +143,21 @@ class ApiService {
           return PaketDetay.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
         }
         throw _fromStatus(resp.statusCode, 'Paket detayı alınamadı.');
+      });
+
+  Future<PrayerTimesData> fetchPrayerTimes(double lat, double lng) =>
+      _withRetry('fetchPrayerTimes', () async {
+        final resp = await _client
+            .get(Uri.parse(ApiConfig.prayerTimesEndpoint(lat, lng)), headers: _headers)
+            .timeout(const Duration(seconds: 12));
+        if (resp.statusCode == 200) {
+          return PrayerTimesData.fromJson(
+            jsonDecode(resp.body) as Map<String, dynamic>,
+            lat: lat,
+            lng: lng,
+          );
+        }
+        throw _fromStatus(resp.statusCode, 'Namaz vakitleri alınamadı.');
       });
 
   Future<List<Esma>> fetchEsmaulHusna() => _withRetry('fetchEsmaulHusna', () async {

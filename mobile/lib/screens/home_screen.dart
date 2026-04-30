@@ -535,6 +535,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               },
             ),
             ListTile(
+              leading: Icon(Icons.mosque_rounded, color: kGold.withValues(alpha: 0.75)),
+              title: Text(
+                'İbadet Asistanı',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+              subtitle: Text(
+                'Namaz vakitleri & kıble',
+                style: TextStyle(fontSize: 12, color: subColor),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.push('/ibadet');
+              },
+            ),
+            ListTile(
               leading: Icon(Icons.checklist_rounded, color: const Color(0xFF7EC8E3).withValues(alpha: 0.8)),
               title: Text(
                 'Kaza Çetelesi',

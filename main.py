@@ -3,9 +3,10 @@
 import os
 import sys
 
+import httpx
 import structlog
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -23,6 +24,7 @@ from schemas import (
     HatimAyetResponse,
     PackageDetailResponse,
     PackageResponse,
+    PrayerTimesResponse,
 )
 
 load_dotenv()
@@ -158,6 +160,45 @@ async def get_package_detail(
         aciklama=paket["aciklama"],
         icon=paket["icon"],
         ayetler=ayetler,
+    )
+
+
+_ALADHAN_URL = "https://api.aladhan.com/v1/timings"
+_PRAYER_RATE = os.getenv("PRAYER_RATE_LIMIT", "10/minute")
+
+
+@app.get("/api/v1/prayer-times", response_model=PrayerTimesResponse, tags=["prayer-times"])
+@limiter.limit(_PRAYER_RATE)
+async def get_prayer_times(
+    request: Request,
+    response: Response,
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+) -> PrayerTimesResponse:
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            r = await client.get(
+                _ALADHAN_URL,
+                params={"latitude": lat, "longitude": lng, "method": 13},
+            )
+            r.raise_for_status()
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Namaz vakitleri servisi yanıt vermedi.")
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=502, detail=f"Namaz vakitleri alınamadı ({exc.response.status_code}).")
+    except httpx.RequestError:
+        raise HTTPException(status_code=502, detail="Namaz vakitleri servisine ulaşılamadı.")
+
+    t = r.json()["data"]["timings"]
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    log.info("prayer_times_served", lat=lat, lng=lng)
+    return PrayerTimesResponse(
+        imsak=t["Imsak"],
+        gunes=t["Sunrise"],
+        ogle=t["Dhuhr"],
+        ikindi=t["Asr"],
+        aksam=t["Maghrib"],
+        yatsi=t["Isha"],
     )
 
 

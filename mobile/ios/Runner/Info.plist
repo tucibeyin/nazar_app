@@ -28,6 +28,10 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Nazarını okumak için kameraya ihtiyaç duyulmaktadır.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Namaz vakitleri ve kıble yönü hesaplamak için konumunuza ihtiyaç duyulmaktadır.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Namaz vakitleri ve kıble yönü hesaplamak için konumunuza ihtiyaç duyulmaktadır.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Kamera erişimi için gereklidir.</string>
 	<key>UIApplicationSceneManifest</key>

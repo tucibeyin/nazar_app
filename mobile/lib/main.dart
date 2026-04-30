@@ -12,6 +12,7 @@ import 'screens/esma_list_screen.dart';
 import 'screens/hatim_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/ilkyardim_screen.dart';
+import 'screens/ibadet_screen.dart';
 import 'screens/kaza_screen.dart';
 import 'screens/splash_screen.dart';
 
@@ -66,6 +67,10 @@ class _NazarAppState extends ConsumerState<NazarApp> {
         GoRoute(
           path: '/kaza-takip',
           builder: (_, __) => const KazaScreen(),
+        ),
+        GoRoute(
+          path: '/ibadet',
+          builder: (_, __) => const IbadetScreen(),
         ),
         GoRoute(
           path: '/home',

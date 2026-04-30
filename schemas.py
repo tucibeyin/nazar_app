@@ -58,6 +58,15 @@ class EsmaResponse(BaseModel):
     ebced_degeri: int
 
 
+class PrayerTimesResponse(BaseModel):
+    imsak: str
+    gunes: str
+    ogle: str
+    ikindi: str
+    aksam: str
+    yatsi: str
+
+
 class HealthResponse(BaseModel):
     status: str
     ayet_count: int

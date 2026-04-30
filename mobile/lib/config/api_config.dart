@@ -15,5 +15,7 @@ class ApiConfig {
   static String packagesEndpoint() => '$baseUrl/api/v1/packages';
   static String packageDetailEndpoint(String id) => '$baseUrl/api/v1/packages/$id';
   static String esmaulHusnaEndpoint() => '$baseUrl/api/v1/esmaul-husna';
+  static String prayerTimesEndpoint(double lat, double lng) =>
+      '$baseUrl/api/v1/prayer-times?lat=$lat&lng=$lng';
   static String audioUrl(String mp3Path) => '$baseUrl$mp3Path';
 }
