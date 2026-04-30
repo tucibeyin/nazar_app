@@ -327,6 +327,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         _buildHeader(),
                         _buildMainFrame(),
                         _buildButton(),
+                        _buildFerahlatCard(isDark),
                         if (_viewState == AppViewState.playing)
                           TesbihWidget(controller: _tesbihCtrl, isPlaying: _isPlaying),
                         if (_ayet != null)
@@ -495,6 +496,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 context.push('/cevsen');
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.favorite_rounded, color: Color(0xFF7EC8E3)),
+              title: Text(
+                'Manevi İlkyardım',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+              subtitle: Text(
+                'Ferahlat, sakin ol',
+                style: TextStyle(fontSize: 12, color: subColor),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.push('/ilkyardim');
+              },
+            ),
             const Spacer(),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
@@ -545,6 +565,94 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     AppViewState.analyzing => CameraFrameState.analyzing,
     AppViewState.playing   => CameraFrameState.playing,
   };
+
+  // ── Manevi İlkyardım Kartı ────────────────────────────────────────────────
+
+  Widget _buildFerahlatCard(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 6),
+      child: Semantics(
+        button: true,
+        label: 'Manevi ilkyardım ekranını aç',
+        child: InkWell(
+          onTap: () => context.push('/ilkyardim'),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF1A3A5C).withValues(alpha: isDark ? 0.92 : 0.82),
+                  const Color(0xFF0D4D4D).withValues(alpha: isDark ? 0.92 : 0.82),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(
+                color: const Color(0xFF5DADE2).withValues(alpha: 0.22),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF1A5F7A).withValues(alpha: 0.18),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF5DADE2).withValues(alpha: 0.15),
+                    ),
+                    child: const Icon(
+                      Icons.favorite_rounded,
+                      color: Color(0xFF7EC8E3),
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Manevi İlkyardım',
+                          style: GoogleFonts.cormorantGaramond(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white.withValues(alpha: 0.90),
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                        Text(
+                          'Bunaldın mı? Ferahlat.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: const Color(0xFF7EC8E3).withValues(alpha: 0.80),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: Colors.white.withValues(alpha: 0.28),
+                    size: 13,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   // ── Buton ─────────────────────────────────────────────────────────────────
 
