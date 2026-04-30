@@ -80,6 +80,13 @@ TERAPI_PAKETLERI: list[dict] = [
         "ayet_refs": [(9, 14), (10, 57), (16, 69), (17, 82), (26, 80), (41, 44)],
     },
     {
+        "id": "insira",
+        "isim": "İnşirah Suresi",
+        "aciklama": "Kalplere huzur veren sure — zorluktan sonra kolaylık",
+        "icon": "heart",
+        "ayet_refs": [(94, i) for i in range(1, 9)],
+    },
+    {
         "id": "stres-karsi",
         "isim": "Sıkıntı ve Stres İçin",
         "aciklama": "Zorluk anlarında teselli veren ayetler",
