@@ -49,6 +49,15 @@ class PackageDetailResponse(BaseModel):
     ayetler: list[AyetResponse]
 
 
+class EsmaResponse(BaseModel):
+    id: int
+    isim: str
+    arapca: str
+    anlam: str
+    fazilet: str
+    ebced_degeri: int
+
+
 class HealthResponse(BaseModel):
     status: str
     ayet_count: int

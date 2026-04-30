@@ -14,10 +14,11 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.middleware.gzip import GZipMiddleware
 
-from data import AYETLER, PACKAGES_RESPONSE, TERAPI_PAKETLERI, ayet_lookup
+from data import AYETLER, ESMAUL_HUSNA, PACKAGES_RESPONSE, TERAPI_PAKETLERI, ayet_lookup
 from middleware import ApiKeyMiddleware, TimingMiddleware
 from schemas import (
     AyetResponse,
+    EsmaResponse,
     HealthResponse,
     HatimAyetResponse,
     PackageDetailResponse,
@@ -158,6 +159,13 @@ async def get_package_detail(
         icon=paket["icon"],
         ayetler=ayetler,
     )
+
+
+@app.get("/api/v1/esmaul-husna", response_model=list[EsmaResponse], tags=["esmaul-husna"])
+@limiter.limit(_RATE_LIMIT)
+async def get_esmaul_husna(request: Request, response: Response) -> list[EsmaResponse]:
+    response.headers["Cache-Control"] = "public, max-age=86400, immutable"
+    return ESMAUL_HUSNA  # type: ignore[return-value]
 
 
 # ── Statik Medya ──────────────────────────────────────────────────────────────

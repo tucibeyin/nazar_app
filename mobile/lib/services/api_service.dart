@@ -10,6 +10,7 @@ import '../config/api_config.dart';
 import '../config/app_constants.dart';
 import '../core/logger.dart';
 import '../models/ayet.dart';
+import '../models/esma.dart';
 import '../models/hatim_ayet.dart';
 import '../models/paket.dart';
 
@@ -141,6 +142,18 @@ class ApiService {
           return PaketDetay.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
         }
         throw _fromStatus(resp.statusCode, 'Paket detayı alınamadı.');
+      });
+
+  Future<List<Esma>> fetchEsmaulHusna() => _withRetry('fetchEsmaulHusna', () async {
+        final resp = await _client
+            .get(Uri.parse(ApiConfig.esmaulHusnaEndpoint()), headers: _headers)
+            .timeout(kApiTimeout);
+        if (resp.statusCode == 200) {
+          return (jsonDecode(resp.body) as List<dynamic>)
+              .map((e) => Esma.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+        throw _fromStatus(resp.statusCode, 'Esmaül Hüsna listesi alınamadı.');
       });
 
   void dispose() => _client.close();

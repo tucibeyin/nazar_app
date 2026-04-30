@@ -14,5 +14,6 @@ class ApiConfig {
   static String hatimEndpoint(int index) => '$baseUrl/api/v1/hatim/$index';
   static String packagesEndpoint() => '$baseUrl/api/v1/packages';
   static String packageDetailEndpoint(String id) => '$baseUrl/api/v1/packages/$id';
+  static String esmaulHusnaEndpoint() => '$baseUrl/api/v1/esmaul-husna';
   static String audioUrl(String mp3Path) => '$baseUrl$mp3Path';
 }

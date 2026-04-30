@@ -515,6 +515,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 context.push('/ilkyardim');
               },
             ),
+            ListTile(
+              leading: Icon(Icons.auto_awesome_rounded, color: kGold.withValues(alpha: 0.85)),
+              title: Text(
+                'Esmaül Hüsna',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+              subtitle: Text(
+                "Allah'ın 99 ismi & zikir",
+                style: TextStyle(fontSize: 12, color: subColor),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.push('/esma-listesi');
+              },
+            ),
             const Spacer(),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),

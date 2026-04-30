@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:camera/camera.dart';
 
 import 'config/theme.dart';
+import 'models/esma.dart';
 import 'providers/service_providers.dart';
 import 'screens/cevsen_screen.dart';
+import 'screens/esma_dhikr_screen.dart';
+import 'screens/esma_list_screen.dart';
 import 'screens/hatim_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/ilkyardim_screen.dart';
@@ -50,6 +53,14 @@ class _NazarAppState extends ConsumerState<NazarApp> {
         GoRoute(
           path: '/ilkyardim',
           builder: (_, __) => const IlkyardimScreen(),
+        ),
+        GoRoute(
+          path: '/esma-listesi',
+          builder: (_, __) => const EsmaListScreen(),
+        ),
+        GoRoute(
+          path: '/esma-dhikr',
+          builder: (_, state) => EsmaDhikrScreen(esma: state.extra as Esma),
         ),
         GoRoute(
           path: '/home',
