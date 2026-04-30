@@ -534,6 +534,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 context.push('/esma-listesi');
               },
             ),
+            ListTile(
+              leading: Icon(Icons.checklist_rounded, color: const Color(0xFF7EC8E3).withValues(alpha: 0.8)),
+              title: Text(
+                'Kaza Çetelesi',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+              subtitle: Text(
+                'Namaz & oruç takibi',
+                style: TextStyle(fontSize: 12, color: subColor),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.push('/kaza-takip');
+              },
+            ),
             const Spacer(),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
