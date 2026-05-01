@@ -20,10 +20,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // TODO: Play Store'a çıkmadan önce benzersiz bir applicationId ver.
+        // Örn: "com.tucibeyin.nazarapp"  — mevcut kurulumları kırar, önceden yap.
         applicationId = "com.example.nazar_app"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -32,9 +31,18 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // TODO: Yayın öncesi gerçek bir keystore ile imzalama konfigürasyonu ekle.
+            // Şimdilik debug key kullanılıyor (Play Store'a bu key ile yüklenirse
+            // sonradan değiştirilemez — keystore dosyasını güvenli sakla).
             signingConfig = signingConfigs.getByName("debug")
+
+            // R8 ile kod küçültme + kaynak küçültme
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
