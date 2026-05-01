@@ -6,6 +6,7 @@ import 'package:camera/camera.dart';
 import 'config/theme.dart';
 import 'models/esma.dart';
 import 'providers/service_providers.dart';
+import 'services/notification_service.dart';
 import 'screens/cevsen_screen.dart';
 import 'screens/esma_dhikr_screen.dart';
 import 'screens/esma_list_screen.dart';
@@ -19,8 +20,8 @@ import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // runApp immediately — no blocking I/O before first frame.
-  // SplashScreen loads cameras in the background while animations play.
+  // Bildirim servisini başlat (tz verisi + plugin init, non-blocking).
+  await NotificationService().initialize();
   runApp(const ProviderScope(child: NazarApp()));
 }
 

@@ -10,7 +10,9 @@ import 'package:sensors_plus/sensors_plus.dart';
 
 import '../config/app_constants.dart';
 import '../models/prayer_times.dart';
+import '../providers/notif_settings_provider.dart';
 import '../providers/vakitler_provider.dart';
+import '../services/notification_service.dart';
 
 class IbadetScreen extends ConsumerStatefulWidget {
   const IbadetScreen({super.key});
@@ -34,6 +36,8 @@ class _IbadetScreenState extends ConsumerState<IbadetScreen> {
       if (mounted) setState(() => _now = DateTime.now());
     });
     _startCompass();
+    // Bildirim iznini iste (kullanıcı daha önce reddettiyse sessizce geçer)
+    NotificationService().requestPermissions().ignore();
   }
 
   void _startCompass() {
@@ -438,7 +442,7 @@ class _IbadetScreenState extends ConsumerState<IbadetScreen> {
 
 // ── Vakit Satırı ──────────────────────────────────────────────────────────────
 
-class _VakitRow extends StatelessWidget {
+class _VakitRow extends ConsumerWidget {
   final IconData icon;
   final String name;
   final String time;
@@ -454,7 +458,9 @@ class _VakitRow extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(notifSettingsProvider)[name] ?? true;
+
     final nameColor = isCurrent
         ? kGold
         : isPast
@@ -465,9 +471,12 @@ class _VakitRow extends StatelessWidget {
         : isPast
             ? const Color(0xFF3D6480)
             : const Color(0xFF7EC8E3);
+    final bellColor = enabled
+        ? kGold.withValues(alpha: 0.55)
+        : const Color(0xFF2A4A62);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
       decoration: isCurrent
           ? BoxDecoration(
               borderRadius: BorderRadius.circular(12),
@@ -502,6 +511,25 @@ class _VakitRow extends StatelessWidget {
             ),
           ],
           const Spacer(),
+          // Bildirim toggle
+          GestureDetector(
+            onTap: () {
+              final pt = ref.read(vakitlerProvider).valueOrNull;
+              ref.read(notifSettingsProvider.notifier).toggle(name, pt);
+            },
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              child: Icon(
+                enabled
+                    ? Icons.notifications_rounded
+                    : Icons.notifications_off_outlined,
+                key: ValueKey(enabled),
+                size: 17,
+                color: bellColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
           Text(
             time,
             style: GoogleFonts.cormorantGaramond(

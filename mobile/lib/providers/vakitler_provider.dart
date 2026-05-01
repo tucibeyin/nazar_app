@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart';
 
 import '../models/prayer_times.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
 import 'service_providers.dart';
 
 final vakitlerProvider = FutureProvider<PrayerTimesData>((ref) async {
@@ -33,5 +34,9 @@ final vakitlerProvider = FutureProvider<PrayerTimesData>((ref) async {
   );
 
   // 4) Backend'den namaz vakitlerini çek
-  return ref.read(apiServiceProvider).fetchPrayerTimes(pos.latitude, pos.longitude);
+  final data = await ref.read(apiServiceProvider).fetchPrayerTimes(pos.latitude, pos.longitude);
+
+  // 5) Günlük bildirim alarmlarını kur (hata sessizce yutulur)
+  NotificationService().schedulePrayerTimeAlarms(data).ignore();
+  return data;
 });
