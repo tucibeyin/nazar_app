@@ -8,6 +8,7 @@ import 'config/theme.dart';
 import 'models/esma.dart';
 import 'providers/service_providers.dart';
 import 'services/notification_service.dart';
+import 'screens/backup_screen.dart';
 import 'screens/cevsen_screen.dart';
 import 'screens/esma_dhikr_screen.dart';
 import 'screens/esma_list_screen.dart';
@@ -84,6 +85,10 @@ class _NazarAppState extends ConsumerState<NazarApp> {
         GoRoute(
           path: '/ibadet',
           builder: (_, __) => const IbadetScreen(),
+        ),
+        GoRoute(
+          path: '/backup',
+          builder: (_, __) => const BackupScreen(),
         ),
         GoRoute(
           path: '/home',

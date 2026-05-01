@@ -592,6 +592,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 context.push('/kaza-takip');
               },
             ),
+            ListTile(
+              leading: Icon(Icons.backup_rounded,
+                  color: kGold.withValues(alpha: 0.75)),
+              title: Text(
+                'Yedekleme',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+              subtitle: Text(
+                'Verilerini yedekle & geri yükle',
+                style: TextStyle(fontSize: 12, color: subColor),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.push('/backup');
+              },
+            ),
             const Spacer(),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
