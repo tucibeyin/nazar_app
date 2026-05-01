@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,14 +7,23 @@ import '../config/app_constants.dart';
 import '../models/hatim_room.dart';
 import '../providers/hatim_halkasi_provider.dart';
 import '../providers/service_providers.dart';
+import '../services/social_share_service.dart';
 
 // ─── Ana Ekran ────────────────────────────────────────────────────────────────
 
-class HatimHalkasiScreen extends ConsumerWidget {
+class HatimHalkasiScreen extends ConsumerStatefulWidget {
   const HatimHalkasiScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HatimHalkasiScreen> createState() =>
+      _HatimHalkasiScreenState();
+}
+
+class _HatimHalkasiScreenState extends ConsumerState<HatimHalkasiScreen> {
+  final _inviteKey = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(hatimHalkasiProvider);
     final isDark = ref.watch(themeProvider) == ThemeMode.dark;
 
@@ -54,7 +62,7 @@ class HatimHalkasiScreen extends ConsumerWidget {
                   icon: Icon(Icons.exit_to_app_rounded,
                       color: Colors.red.shade400, size: 22),
                   tooltip: 'Halkadan Ayrıl',
-                  onPressed: () => _confirmLeave(context, ref),
+                  onPressed: () => _confirmLeave(context),
                 ),
               ]
             : [],
@@ -63,11 +71,15 @@ class HatimHalkasiScreen extends ConsumerWidget {
           ? const Center(child: CircularProgressIndicator(color: kGold))
           : state.roomCode == null
               ? _LobbyView(isDark: isDark)
-              : _RoomView(state: state, isDark: isDark),
+              : _RoomView(
+                  state: state,
+                  isDark: isDark,
+                  inviteKey: _inviteKey,
+                ),
     );
   }
 
-  void _confirmLeave(BuildContext context, WidgetRef ref) {
+  void _confirmLeave(BuildContext context) {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -208,7 +220,12 @@ class _LobbyView extends ConsumerWidget {
 class _RoomView extends ConsumerWidget {
   final HatimHalkasiState state;
   final bool isDark;
-  const _RoomView({required this.state, required this.isDark});
+  final GlobalKey inviteKey;
+  const _RoomView({
+    required this.state,
+    required this.isDark,
+    required this.inviteKey,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -217,7 +234,41 @@ class _RoomView extends ConsumerWidget {
 
     return Column(
       children: [
-        _RoomCodeBanner(code: state.roomCode!, isDark: isDark),
+        // Davet kartı + paylaş ikonu katmanı
+        Stack(
+          alignment: Alignment.topRight,
+          children: [
+            RepaintBoundary(
+              key: inviteKey,
+              child: _HatimInviteCard(code: state.roomCode!),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: GestureDetector(
+                onTap: () => SocialShareService.shareWidgetAsImage(
+                  inviteKey,
+                  text:
+                      'Hatim halkamıza katıl! Oda kodu: ${state.roomCode}',
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF071220).withValues(alpha: 0.82),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: kGold.withValues(alpha: 0.45), width: 1),
+                  ),
+                  child: const Icon(
+                    Icons.ios_share_rounded,
+                    size: 16,
+                    color: kGold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
         // İlerleme çubuğu
         LinearProgressIndicator(
           value: completed / 30,
@@ -287,58 +338,104 @@ class _RoomView extends ConsumerWidget {
   }
 }
 
-// ─── Oda Kodu Bandı ───────────────────────────────────────────────────────────
+// ─── Davet Kartı (paylaşılabilir görsel) ─────────────────────────────────────
 
-class _RoomCodeBanner extends StatelessWidget {
+class _HatimInviteCard extends StatelessWidget {
   final String code;
-  final bool isDark;
-  const _RoomCodeBanner({required this.code, required this.isDark});
+  const _HatimInviteCard({required this.code});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      color: kGold.withValues(alpha: isDark ? 0.12 : 0.08),
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF071220), Color(0xFF0D2035)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      child: Column(
         children: [
+          // Marka bandı
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.mosque_rounded,
+                  color: Color(0xFF7EC8E3), size: 14),
+              SizedBox(width: 7),
+              Text(
+                'NAZAR & FERAHLAMA',
+                style: TextStyle(
+                  fontSize: 10,
+                  letterSpacing: 2.5,
+                  color: Color(0xFF7EC8E3),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(height: 1, color: Color(0xFFC9A84C).withValues(alpha: 0.28)),
+          const SizedBox(height: 12),
           Text(
-            'ODA KODU: ',
-            style: TextStyle(
-              fontSize: 12,
-              letterSpacing: 1.8,
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.5)
-                  : kGreen.withValues(alpha: 0.55),
+            'Hatim Halkamıza Katılın!',
+            style: GoogleFonts.cormorantGaramond(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: kGold,
+              letterSpacing: 0.5,
             ),
           ),
-          Text(
-            code,
+          const SizedBox(height: 10),
+          const Text(
+            'ODA KODU',
             style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 5,
-              color: isDark ? kGold : kGreen,
+              fontSize: 9,
+              letterSpacing: 3.5,
+              color: Color(0xFF8AACBF),
             ),
           ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: () {
-              Clipboard.setData(ClipboardData(text: code));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Oda kodu kopyalandı!'),
-                  duration: Duration(seconds: 1),
+          const SizedBox(height: 8),
+          // Her harf ayrı kutuda
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: code.split('').map((char) {
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: 32,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: kGold.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                      color: kGold.withValues(alpha: 0.45), width: 1.2),
+                ),
+                child: Center(
+                  child: Text(
+                    char,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: kGold,
+                    ),
+                  ),
                 ),
               );
-            },
-            child: Icon(
-              Icons.copy_rounded,
-              size: 18,
-              color: isDark
-                  ? kGold.withValues(alpha: 0.6)
-                  : kGreen.withValues(alpha: 0.5),
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+          Container(height: 1, color: Color(0xFFC9A84C).withValues(alpha: 0.28)),
+          const SizedBox(height: 10),
+          Text(
+            '30 cüzü birlikte okuduğumuzda Allah kabul etsin.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.cormorantGaramond(
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+              color: kGold.withValues(alpha: 0.55),
+              height: 1.4,
             ),
           ),
         ],

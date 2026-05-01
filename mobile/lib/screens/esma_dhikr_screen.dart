@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_constants.dart';
 import '../models/esma.dart';
+import '../services/social_share_service.dart';
 import '../widgets/tesbih_widget.dart';
 
 const _kZikirHedefi = 33;
@@ -21,6 +22,7 @@ class EsmaDhikrScreen extends StatefulWidget {
 class _EsmaDhikrScreenState extends State<EsmaDhikrScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _tesbihCtrl;
+  final _shareKey = GlobalKey();
   int _count = 0;
 
   String get _spKey => 'zikir_${widget.esma.id}';
@@ -141,7 +143,8 @@ class _EsmaDhikrScreenState extends State<EsmaDhikrScreen>
           IconButton(
             tooltip: 'Geri',
             onPressed: () => context.pop(),
-            icon: const Icon(Icons.arrow_back_ios_rounded, color: Color(0xFF7EC8E3), size: 20),
+            icon: const Icon(Icons.arrow_back_ios_rounded,
+                color: Color(0xFF7EC8E3), size: 20),
           ),
           Expanded(
             child: Text(
@@ -153,6 +156,18 @@ class _EsmaDhikrScreenState extends State<EsmaDhikrScreen>
                 color: kGold,
                 letterSpacing: 1.5,
               ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Paylaş',
+            onPressed: () => SocialShareService.shareWidgetAsImage(
+              _shareKey,
+              text: '${widget.esma.isim} — ${widget.esma.anlam}',
+            ),
+            icon: Icon(
+              Icons.ios_share_rounded,
+              color: const Color(0xFF7EC8E3).withValues(alpha: 0.8),
+              size: 21,
             ),
           ),
           IconButton(
@@ -173,38 +188,10 @@ class _EsmaDhikrScreenState extends State<EsmaDhikrScreen>
     return Column(
       children: [
         const SizedBox(height: 8),
-        // Arabic name
-        Text(
-          esma.arapca,
-          textDirection: TextDirection.rtl,
-          style: GoogleFonts.amiri(
-            fontSize: 40,
-            color: kGold.withValues(alpha: 0.9),
-            height: 1.3,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          esma.isim,
-          style: GoogleFonts.cormorantGaramond(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF7EC8E3),
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40),
-          child: Text(
-            esma.anlam,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF8AACBF),
-              height: 1.5,
-            ),
-          ),
+        // Paylaşılabilir esma kartı
+        RepaintBoundary(
+          key: _shareKey,
+          child: _EsmaShareCard(esma: esma),
         ),
         const SizedBox(height: 20),
         // Tesbih widget — driven by controller.value
@@ -272,22 +259,121 @@ class _EsmaDhikrScreenState extends State<EsmaDhikrScreen>
             letterSpacing: 1.5,
           ),
         ),
-        const SizedBox(height: 32),
-        // Fazilet
-        Padding(
-          padding: const EdgeInsets.fromLTRB(32, 0, 32, 40),
-          child: Text(
+        const SizedBox(height: 40),
+      ],
+    );
+  }
+}
+
+// ─── Paylaşılabilir Esma Kartı ────────────────────────────────────────────────
+
+class _EsmaShareCard extends StatelessWidget {
+  final Esma esma;
+  const _EsmaShareCard({required this.esma});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF071220), Color(0xFF0C1F35)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kGold.withValues(alpha: 0.30), width: 1),
+      ),
+      child: Column(
+        children: [
+          // Başlık
+          const Text(
+            'ESMAÜL HÜSNA',
+            style: TextStyle(
+              fontSize: 9,
+              letterSpacing: 3,
+              color: Color(0xFF7EC8E3),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+              height: 1,
+              color: const Color(0xFFC9A84C).withValues(alpha: 0.25)),
+          const SizedBox(height: 14),
+          // Arapça isim
+          Text(
+            esma.arapca,
+            textDirection: TextDirection.rtl,
+            style: GoogleFonts.amiri(
+              fontSize: 38,
+              color: kGold.withValues(alpha: 0.9),
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          // Türkçe isim
+          Text(
+            esma.isim,
+            style: GoogleFonts.cormorantGaramond(
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF7EC8E3),
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 6),
+          // Anlam
+          Text(
+            esma.anlam,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF8AACBF),
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+              height: 1,
+              color: const Color(0xFFC9A84C).withValues(alpha: 0.25)),
+          const SizedBox(height: 10),
+          // Fazilet
+          Text(
             esma.fazilet,
             textAlign: TextAlign.center,
             style: GoogleFonts.cormorantGaramond(
-              fontSize: 13,
-              color: kGold.withValues(alpha: 0.50),
+              fontSize: 11,
+              color: kGold.withValues(alpha: 0.52),
               fontStyle: FontStyle.italic,
-              height: 1.6,
+              height: 1.55,
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          Container(
+              height: 1,
+              color: const Color(0xFFC9A84C).withValues(alpha: 0.25)),
+          const SizedBox(height: 8),
+          // Marka alt bandı
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.mosque_rounded,
+                  color: Color(0xFF7EC8E3), size: 11),
+              SizedBox(width: 6),
+              Text(
+                'NAZAR & FERAHLAMA',
+                style: TextStyle(
+                  fontSize: 9,
+                  letterSpacing: 2,
+                  color: Color(0xFF7EC8E3),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
