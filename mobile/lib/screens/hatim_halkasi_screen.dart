@@ -359,9 +359,9 @@ class _HatimInviteCard extends StatelessWidget {
       child: Column(
         children: [
           // Marka bandı
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
+            children: [
               Icon(Icons.mosque_rounded,
                   color: Color(0xFF7EC8E3), size: 14),
               SizedBox(width: 7),
@@ -377,7 +377,7 @@ class _HatimInviteCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Container(height: 1, color: Color(0xFFC9A84C).withValues(alpha: 0.28)),
+          Container(height: 1, color: const Color(0xFFC9A84C).withValues(alpha: 0.28)),
           const SizedBox(height: 12),
           Text(
             'Hatim Halkamıza Katılın!',
@@ -426,7 +426,7 @@ class _HatimInviteCard extends StatelessWidget {
             }).toList(),
           ),
           const SizedBox(height: 12),
-          Container(height: 1, color: Color(0xFFC9A84C).withValues(alpha: 0.28)),
+          Container(height: 1, color: const Color(0xFFC9A84C).withValues(alpha: 0.28)),
           const SizedBox(height: 10),
           Text(
             '30 cüzü birlikte okuduğumuzda Allah kabul etsin.',

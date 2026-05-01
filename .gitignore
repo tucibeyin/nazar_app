@@ -3,3 +3,4 @@ venv/
 __pycache__/
 .env
 mobile/dart_defines.json
+mobile/symbols_*.zip

@@ -356,9 +356,9 @@ class _EsmaShareCard extends StatelessWidget {
               color: const Color(0xFFC9A84C).withValues(alpha: 0.25)),
           const SizedBox(height: 8),
           // Marka alt bandı
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
+            children: [
               Icon(Icons.mosque_rounded,
                   color: Color(0xFF7EC8E3), size: 11),
               SizedBox(width: 6),
