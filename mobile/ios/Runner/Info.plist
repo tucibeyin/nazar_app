@@ -34,6 +34,10 @@
 	<string>Namaz vakitleri ve kıble yönü hesaplamak için konumunuza ihtiyaç duyulmaktadır.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Kamera erişimi için gereklidir.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Yedek dosyası seçmek veya paylaşmak için fotoğraf kütüphanesine erişim gerekebilir.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Yedek dosyasını kaydetmek için fotoğraf kütüphanesine erişim gerekebilir.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
