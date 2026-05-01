@@ -478,6 +478,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               },
             ),
             ListTile(
+              leading: Icon(Icons.people_alt_rounded,
+                  color: kGold.withValues(alpha: 0.85)),
+              title: Text(
+                'Hatim Halkası',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+              subtitle: Text(
+                'Toplulukla 30 cüzü paylaş',
+                style: TextStyle(fontSize: 12, color: subColor),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.push('/hatim-halkasi');
+              },
+            ),
+            ListTile(
               leading: Icon(Icons.shield_rounded, color: textColor),
               title: Text(
                 'Benim Cevşenim',

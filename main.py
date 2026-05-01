@@ -2,6 +2,7 @@
 
 import os
 import sys
+from contextlib import asynccontextmanager
 
 import httpx
 import structlog
@@ -16,15 +17,19 @@ from slowapi.util import get_remote_address
 from starlette.middleware.gzip import GZipMiddleware
 
 from data import AYETLER, ESMAUL_HUSNA, PACKAGES_RESPONSE, TERAPI_PAKETLERI, ayet_lookup
+from hatim_db import create_room, get_room, init_db, update_juz
 from middleware import ApiKeyMiddleware, TimingMiddleware
 from schemas import (
     AyetResponse,
     EsmaResponse,
     HealthResponse,
     HatimAyetResponse,
+    JuzResponse,
+    JuzUpdateRequest,
     PackageDetailResponse,
     PackageResponse,
     PrayerTimesResponse,
+    RoomResponse,
 )
 
 load_dotenv()
@@ -51,11 +56,19 @@ limiter = Limiter(key_func=get_remote_address)
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    await init_db()
+    yield
+
+
 app = FastAPI(
     title="Nazar API",
     version="1.0.0",
     docs_url=None,
     redoc_url=None,
+    lifespan=_lifespan,
 )
 
 app.state.limiter = limiter
@@ -70,7 +83,7 @@ _allowed_origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST", "PATCH"],
     allow_headers=["Accept", "Content-Type", "X-API-Key"],
 )
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -207,6 +220,64 @@ async def get_prayer_times(
 async def get_esmaul_husna(request: Request, response: Response) -> list[EsmaResponse]:
     response.headers["Cache-Control"] = "public, max-age=86400, immutable"
     return ESMAUL_HUSNA  # type: ignore[return-value]
+
+
+# ─── Hatim Halkaları ──────────────────────────────────────────────────────────
+
+_HALKA_RATE = os.getenv("HALKA_RATE_LIMIT", "20/minute")
+
+
+@app.post(
+    "/api/v1/hatim-halkasi/create",
+    response_model=RoomResponse,
+    status_code=201,
+    tags=["hatim-halkasi"],
+)
+@limiter.limit(_HALKA_RATE)
+async def create_hatim_room(request: Request) -> RoomResponse:
+    try:
+        room = await create_room()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    log.info("hatim_room_created", code=room["code"])
+    return RoomResponse(**room)
+
+
+@app.get(
+    "/api/v1/hatim-halkasi/{room_code}",
+    response_model=RoomResponse,
+    tags=["hatim-halkasi"],
+)
+@limiter.limit(_HALKA_RATE)
+async def get_hatim_room(
+    request: Request, response: Response, room_code: str
+) -> RoomResponse:
+    room = await get_room(room_code.upper())
+    if room is None:
+        raise HTTPException(status_code=404, detail="Oda bulunamadı.")
+    response.headers["Cache-Control"] = "no-store"
+    return RoomResponse(**room)
+
+
+@app.patch(
+    "/api/v1/hatim-halkasi/{room_code}/juz/{juz_num}",
+    response_model=JuzResponse,
+    tags=["hatim-halkasi"],
+)
+@limiter.limit(_HALKA_RATE)
+async def update_hatim_juz(
+    request: Request,
+    room_code: str,
+    juz_num: int,
+    body: JuzUpdateRequest,
+) -> JuzResponse:
+    if not 1 <= juz_num <= 30:
+        raise HTTPException(status_code=422, detail="Cüz numarası 1–30 arasında olmalı.")
+    updated = await update_juz(room_code.upper(), juz_num, body.durum)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Cüz bulunamadı.")
+    log.info("juz_updated", room=room_code, juz=juz_num, durum=body.durum)
+    return JuzResponse(juz_num=juz_num, durum=body.durum)
 
 
 # ── Statik Medya ──────────────────────────────────────────────────────────────

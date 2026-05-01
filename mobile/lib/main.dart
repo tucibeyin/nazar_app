@@ -9,6 +9,7 @@ import 'providers/service_providers.dart';
 import 'screens/cevsen_screen.dart';
 import 'screens/esma_dhikr_screen.dart';
 import 'screens/esma_list_screen.dart';
+import 'screens/hatim_halkasi_screen.dart';
 import 'screens/hatim_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/ilkyardim_screen.dart';
@@ -47,6 +48,10 @@ class _NazarAppState extends ConsumerState<NazarApp> {
         GoRoute(
           path: '/hatim',
           builder: (_, __) => const HatimScreen(),
+        ),
+        GoRoute(
+          path: '/hatim-halkasi',
+          builder: (_, __) => const HatimHalkasiScreen(),
         ),
         GoRoute(
           path: '/cevsen',

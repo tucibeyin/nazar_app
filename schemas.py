@@ -1,5 +1,7 @@
 """Nazar API — Pydantic response modelleri."""
 
+from typing import Literal
+
 from pydantic import BaseModel, field_validator
 
 
@@ -65,6 +67,21 @@ class PrayerTimesResponse(BaseModel):
     ikindi: str
     aksam: str
     yatsi: str
+
+
+class JuzResponse(BaseModel):
+    juz_num: int
+    durum: str
+
+
+class RoomResponse(BaseModel):
+    code: str
+    created_at: str
+    juzler: list[JuzResponse]
+
+
+class JuzUpdateRequest(BaseModel):
+    durum: Literal["bos", "alindi", "okundu"]
 
 
 class HealthResponse(BaseModel):
