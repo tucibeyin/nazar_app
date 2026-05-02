@@ -25,36 +25,19 @@ class _IbadetScreenState extends ConsumerState<IbadetScreen> {
   Timer? _ticker;
   DateTime _now = DateTime.now();
 
-  double _heading = 0;
-  StreamSubscription<CompassEvent>? _magSub;
-
   @override
   void initState() {
     super.initState();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
-    _startCompass();
     // Bildirim iznini iste (kullanıcı daha önce reddettiyse sessizce geçer)
     NotificationService().requestPermissions().ignore();
-  }
-
-  void _startCompass() {
-    _magSub = FlutterCompass.events?.listen((event) {
-      final h = event.heading;
-      if (h == null || !mounted) return;
-      // Low-pass filter for smooth rotation
-      double diff = h - _heading;
-      if (diff > 180) diff -= 360;
-      if (diff < -180) diff += 360;
-      setState(() => _heading = (_heading + diff * 0.2 + 360) % 360);
-    });
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
-    _magSub?.cancel();
     super.dispose();
   }
 
@@ -413,20 +396,34 @@ class _IbadetScreenState extends ConsumerState<IbadetScreen> {
           style: const TextStyle(fontSize: 11, color: Color(0xFF5D8AA0)),
         ),
         const SizedBox(height: 20),
-        SizedBox(
-          width: 240,
-          height: 240,
-          child: CustomPaint(
-            painter: _CompassPainter(
-              headingDeg: _heading,
-              qiblaDeg: pt.qibla,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          "Kıble: ${pt.qibla.round()}° (Kuzey'den)",
-          style: const TextStyle(fontSize: 11, color: Color(0xFF5D8AA0), letterSpacing: 0.5),
+        StreamBuilder<CompassEvent>(
+          stream: FlutterCompass.events,
+          builder: (context, snapshot) {
+            final heading = snapshot.data?.heading ?? 0.0;
+            return Column(
+              children: [
+                SizedBox(
+                  width: 240,
+                  height: 240,
+                  child: CustomPaint(
+                    painter: _CompassPainter(
+                      headingDeg: heading,
+                      qiblaDeg: pt.qibla,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Kıble: ${pt.qibla.round()}° | Yön: ${heading.round()}°',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF5D8AA0),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ],
     );
