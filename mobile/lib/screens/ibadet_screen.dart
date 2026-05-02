@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_compass/flutter_compass.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 import '../config/app_constants.dart';
 import '../models/prayer_times.dart';
@@ -25,19 +25,68 @@ class _IbadetScreenState extends ConsumerState<IbadetScreen> {
   Timer? _ticker;
   DateTime _now = DateTime.now();
 
+  double _heading = 0;
+  AccelerometerEvent? _acc;
+  MagnetometerEvent? _mag;
+  StreamSubscription<AccelerometerEvent>? _accSub;
+  StreamSubscription<MagnetometerEvent>? _magSub;
+
   @override
   void initState() {
     super.initState();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
-    // Bildirim iznini iste (kullanıcı daha önce reddettiyse sessizce geçer)
+    _startCompass();
     NotificationService().requestPermissions().ignore();
+  }
+
+  void _startCompass() {
+    _accSub = accelerometerEventStream(
+      samplingPeriod: SensorInterval.uiInterval,
+    ).listen((e) { _acc = e; _computeHeading(); });
+
+    _magSub = magnetometerEventStream(
+      samplingPeriod: SensorInterval.uiInterval,
+    ).listen((e) { _mag = e; _computeHeading(); });
+  }
+
+  void _computeHeading() {
+    final a = _acc; final m = _mag;
+    if (a == null || m == null || !mounted) return;
+
+    // Tilt-compensated heading (Android getRotationMatrix + getOrientation mantığı)
+    // H = geomagnetic cross gravity (yatay doğu vektörü)
+    final hx = m.y * a.z - m.z * a.y;
+    final hy = m.z * a.x - m.x * a.z;
+    final hz = m.x * a.y - m.y * a.x;
+    final hNorm = math.sqrt(hx * hx + hy * hy + hz * hz);
+    if (hNorm < 0.1) return;
+
+    final aNorm = math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+    if (aNorm < 0.1) return;
+
+    // Normalize
+    final hnx = hx / hNorm; final hny = hy / hNorm; final hnz = hz / hNorm;
+    final anx = a.x / aNorm; final anz = a.z / aNorm;
+
+    // M = gravity cross H (yatay kuzey vektörü)
+    final mny = anz * hnx - anx * hnz;
+
+    // Azimut = atan2(H.y, M.y) — Android getOrientation R[1], R[4] formülü
+    final raw = (math.atan2(hny, mny) * 180 / math.pi + 360) % 360;
+
+    double diff = raw - _heading;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    setState(() => _heading = (_heading + diff * 0.15 + 360) % 360);
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    _accSub?.cancel();
+    _magSub?.cancel();
     super.dispose();
   }
 
@@ -396,34 +445,24 @@ class _IbadetScreenState extends ConsumerState<IbadetScreen> {
           style: const TextStyle(fontSize: 11, color: Color(0xFF5D8AA0)),
         ),
         const SizedBox(height: 20),
-        StreamBuilder<CompassEvent>(
-          stream: FlutterCompass.events,
-          builder: (context, snapshot) {
-            final heading = snapshot.data?.heading ?? 0.0;
-            return Column(
-              children: [
-                SizedBox(
-                  width: 240,
-                  height: 240,
-                  child: CustomPaint(
-                    painter: _CompassPainter(
-                      headingDeg: heading,
-                      qiblaDeg: pt.qibla,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Kıble: ${pt.qibla.round()}° | Yön: ${heading.round()}°',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF5D8AA0),
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            );
-          },
+        SizedBox(
+          width: 240,
+          height: 240,
+          child: CustomPaint(
+            painter: _CompassPainter(
+              headingDeg: _heading,
+              qiblaDeg: pt.qibla,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Kıble: ${pt.qibla.round()}° | Yön: ${_heading.round()}°',
+          style: const TextStyle(
+            fontSize: 11,
+            color: Color(0xFF5D8AA0),
+            letterSpacing: 0.5,
+          ),
         ),
       ],
     );
