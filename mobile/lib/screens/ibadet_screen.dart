@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:sensors_plus/sensors_plus.dart';
+import 'package:flutter_compass/flutter_compass.dart';
 
 import '../config/app_constants.dart';
 import '../models/prayer_times.dart';
@@ -25,9 +25,8 @@ class _IbadetScreenState extends ConsumerState<IbadetScreen> {
   Timer? _ticker;
   DateTime _now = DateTime.now();
 
-  // Magnetometer-based compass heading (degrees, 0–360)
   double _heading = 0;
-  StreamSubscription<MagnetometerEvent>? _magSub;
+  StreamSubscription<CompassEvent>? _magSub;
 
   @override
   void initState() {
@@ -41,21 +40,15 @@ class _IbadetScreenState extends ConsumerState<IbadetScreen> {
   }
 
   void _startCompass() {
-    try {
-      _magSub = magnetometerEventStream(
-        samplingPeriod: const Duration(milliseconds: 100),
-      ).listen((e) {
-        // Low-pass filter for smooth rotation
-        final raw = (math.atan2(e.y, e.x) * 180 / math.pi + 360) % 360;
-        double diff = raw - _heading;
-        if (diff > 180) diff -= 360;
-        if (diff < -180) diff += 360;
-        _heading = (_heading + diff * 0.15 + 360) % 360;
-        if (mounted) setState(() {});
-      });
-    } catch (_) {
-      // Magnetometer mevcut değil — pusula pasif kalır
-    }
+    _magSub = FlutterCompass.events?.listen((event) {
+      final h = event.heading;
+      if (h == null || !mounted) return;
+      // Low-pass filter for smooth rotation
+      double diff = h - _heading;
+      if (diff > 180) diff -= 360;
+      if (diff < -180) diff += 360;
+      setState(() => _heading = (_heading + diff * 0.2 + 360) % 360);
+    });
   }
 
   @override

@@ -1,7 +1,7 @@
 name: nazar_app
 description: Nazar ve Ferahlama Uygulaması
 publish_to: 'none'
-version: 1.0.1+15
+version: 1.0.1+17
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -21,7 +21,7 @@ dependencies:
   flutter_cache_manager: ^3.4.1
   audio_session: ^0.1.21
   geolocator: ^13.0.4
-  sensors_plus: ^5.0.0
+  flutter_compass: ^0.8.0
   flutter_local_notifications: ^17.2.4
   timezone: ^0.9.4
   share_plus: ^10.0.0

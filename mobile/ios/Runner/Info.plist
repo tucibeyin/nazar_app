@@ -30,6 +30,8 @@
 	<string>Nazarını okumak için kameraya ihtiyaç duyulmaktadır.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Namaz vakitleri ve kıble yönü hesaplamak için konumunuza ihtiyaç duyulmaktadır.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Kıble pusulası için manyetometre ve hareket sensörlerine ihtiyaç duyulmaktadır.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Namaz vakitleri ve kıble yönü hesaplamak için konumunuza ihtiyaç duyulmaktadır.</string>
 	<key>NSMicrophoneUsageDescription</key>
