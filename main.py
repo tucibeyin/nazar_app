@@ -183,7 +183,7 @@ _PRAYER_RATE = os.getenv("PRAYER_RATE_LIMIT", "10/minute")
 async def _fetch_aladhan(lat: float, lng: float) -> dict | None:
     """aladhan.com'dan vakitleri çeker; ulaşamazsa None döner."""
     try:
-        async with httpx.AsyncClient(timeout=6) as client:
+        async with httpx.AsyncClient(timeout=6, follow_redirects=True) as client:
             r = await client.get(
                 _ALADHAN_URL,
                 params={"latitude": lat, "longitude": lng, "method": 13},
