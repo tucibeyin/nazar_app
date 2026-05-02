@@ -55,8 +55,7 @@ class _IbadetScreenState extends ConsumerState<IbadetScreen> {
     final a = _acc; final m = _mag;
     if (a == null || m == null || !mounted) return;
 
-    // Tilt-compensated heading (Android getRotationMatrix + getOrientation mantığı)
-    // H = geomagnetic cross gravity (yatay doğu vektörü)
+    // H = geomagnetic cross gravity → cihaz çerçevesinde Doğu vektörü
     final hx = m.y * a.z - m.z * a.y;
     final hy = m.z * a.x - m.x * a.z;
     final hz = m.x * a.y - m.y * a.x;
@@ -66,15 +65,31 @@ class _IbadetScreenState extends ConsumerState<IbadetScreen> {
     final aNorm = math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
     if (aNorm < 0.1) return;
 
-    // Normalize
     final hnx = hx / hNorm; final hny = hy / hNorm; final hnz = hz / hNorm;
-    final anx = a.x / aNorm; final anz = a.z / aNorm;
+    final anx = a.x / aNorm; final any = a.y / aNorm; final anz = a.z / aNorm;
 
-    // M = gravity cross H (yatay kuzey vektörü)
+    // N = gravity cross H → cihaz çerçevesinde Kuzey vektörü
     final mny = anz * hnx - anx * hnz;
+    final mnz = anx * hny - any * hnx;
 
-    // Azimut = atan2(H.y, M.y) — Android getOrientation R[1], R[4] formülü
-    final raw = (math.atan2(hny, mny) * 180 / math.pi + 360) % 360;
+    // Telefon eğimine göre ağırlıklı bearing:
+    //  • Düz tutulunca: +Y (ekran üstü) yönü kullan
+    //  • Dikey tutulunca: -Z (bakış yönü = ekranın içi) yönü kullan
+    // Her eksenin yatay düzlemdeki iz büyüklüğü = ağırlığı belirler.
+    final yHoriz = math.sqrt(hny * hny + mny * mny);
+    final zHoriz = math.sqrt(hnz * hnz + mnz * mnz);
+
+    final bearingY = math.atan2(hny, mny);       // +Y yönünün açısı
+    final bearingZ = math.atan2(-hnz, -mnz);     // -Z yönünün açısı
+
+    // Dairesel ağırlıklı ortalama
+    final wyc = yHoriz * math.cos(bearingY);
+    final wys = yHoriz * math.sin(bearingY);
+    final wzc = zHoriz * math.cos(bearingZ);
+    final wzs = zHoriz * math.sin(bearingZ);
+
+    if ((wyc + wzc).abs() < 0.001 && (wys + wzs).abs() < 0.001) return;
+    final raw = (math.atan2(wys + wzs, wyc + wzc) * 180 / math.pi + 360) % 360;
 
     double diff = raw - _heading;
     if (diff > 180) diff -= 360;
