@@ -180,6 +180,30 @@ _ALADHAN_URL = "https://api.aladhan.com/v1/timings"
 _PRAYER_RATE = os.getenv("PRAYER_RATE_LIMIT", "10/minute")
 
 
+async def _fetch_aladhan(lat: float, lng: float) -> dict | None:
+    """aladhan.com'dan vakitleri çeker; ulaşamazsa None döner."""
+    try:
+        async with httpx.AsyncClient(timeout=6) as client:
+            r = await client.get(
+                _ALADHAN_URL,
+                params={"latitude": lat, "longitude": lng, "method": 13},
+            )
+            r.raise_for_status()
+        return r.json()["data"]["timings"]
+    except Exception:
+        return None
+
+
+def _local_timings(lat: float, lng: float) -> dict:
+    """Yerel astronomik hesaplama (aladhan erişilemezse kullanılır)."""
+    import asyncio
+    from datetime import date as _date
+    from prayer_calc import prayer_times_local
+
+    loop = asyncio.get_event_loop()
+    return loop.run_in_executor(None, prayer_times_local, lat, lng, _date.today())
+
+
 @app.get("/api/v1/prayer-times", response_model=PrayerTimesResponse, tags=["prayer-times"])
 @limiter.limit(_PRAYER_RATE)
 async def get_prayer_times(
@@ -188,21 +212,24 @@ async def get_prayer_times(
     lat: float = Query(..., ge=-90, le=90),
     lng: float = Query(..., ge=-180, le=180),
 ) -> PrayerTimesResponse:
-    try:
-        async with httpx.AsyncClient(timeout=8) as client:
-            r = await client.get(
-                _ALADHAN_URL,
-                params={"latitude": lat, "longitude": lng, "method": 13},
-            )
-            r.raise_for_status()
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="Namaz vakitleri servisi yanıt vermedi.")
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(status_code=502, detail=f"Namaz vakitleri alınamadı ({exc.response.status_code}).")
-    except httpx.RequestError:
-        raise HTTPException(status_code=502, detail="Namaz vakitleri servisine ulaşılamadı.")
+    from datetime import date as _date
+    import asyncio
+    from prayer_calc import prayer_times_local
 
-    t = r.json()["data"]["timings"]
+    # ── Birincil kaynak: aladhan.com (Diyanet method 13) ──────────────────────
+    t = await _fetch_aladhan(lat, lng)
+
+    if t is None:
+        # ── Yedek: yerel astronomik hesaplama ─────────────────────────────────
+        log.warning("aladhan_unreachable_fallback", lat=lat, lng=lng)
+        try:
+            t = await asyncio.get_event_loop().run_in_executor(
+                None, prayer_times_local, lat, lng, _date.today()
+            )
+        except Exception as exc:
+            log.error("prayer_times_local_error", error=str(exc))
+            raise HTTPException(status_code=503, detail="Namaz vakitleri alınamadı.")
+
     response.headers["Cache-Control"] = "public, max-age=3600"
     log.info("prayer_times_served", lat=lat, lng=lng)
     return PrayerTimesResponse(
