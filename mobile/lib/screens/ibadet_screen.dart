@@ -23,13 +23,20 @@ class IbadetScreen extends ConsumerStatefulWidget {
 
 class _IbadetScreenState extends ConsumerState<IbadetScreen> {
   Timer? _ticker;
+  Timer? _renderTicker;
   DateTime _now = DateTime.now();
 
+  // ── Pusula (tamamlayıcı filtre: jiroskop hızlı + mag/acc mutlak referans) ──
   double _heading = 0;
+  bool _headingInit = false;
+  bool _headingDirty = false;
+  DateTime? _lastGyroTime;
+
   AccelerometerEvent? _acc;
   MagnetometerEvent? _mag;
   StreamSubscription<AccelerometerEvent>? _accSub;
   StreamSubscription<MagnetometerEvent>? _magSub;
+  StreamSubscription<GyroscopeEvent>? _gyroSub;
 
   @override
   void initState() {
@@ -37,71 +44,109 @@ class _IbadetScreenState extends ConsumerState<IbadetScreen> {
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
+    // 30 fps'de sadece değişiklik varsa yeniden çiz
+    _renderTicker = Timer.periodic(const Duration(milliseconds: 33), (_) {
+      if (_headingDirty && mounted) {
+        _headingDirty = false;
+        setState(() {});
+      }
+    });
     _startCompass();
     NotificationService().requestPermissions().ignore();
   }
 
   void _startCompass() {
-    _accSub = accelerometerEventStream(
-      samplingPeriod: SensorInterval.uiInterval,
-    ).listen((e) { _acc = e; _computeHeading(); });
-
-    _magSub = magnetometerEventStream(
-      samplingPeriod: SensorInterval.uiInterval,
-    ).listen((e) { _mag = e; _computeHeading(); });
+    _accSub = accelerometerEventStream(samplingPeriod: SensorInterval.uiInterval)
+        .listen((e) { _acc = e; _tryInitHeading(); });
+    _magSub = magnetometerEventStream(samplingPeriod: SensorInterval.uiInterval)
+        .listen((e) { _mag = e; _tryInitHeading(); });
+    _gyroSub = gyroscopeEventStream(samplingPeriod: SensorInterval.uiInterval)
+        .listen(_onGyro);
   }
 
-  void _computeHeading() {
-    final a = _acc; final m = _mag;
-    if (a == null || m == null || !mounted) return;
+  // Mag+acc'tan ilk heading başlangıcını ayarla
+  void _tryInitHeading() {
+    if (_headingInit) return;
+    final h = _magAccHeading();
+    if (h != null) {
+      _heading = h;
+      _headingInit = true;
+    }
+  }
 
-    // H = geomagnetic cross gravity → cihaz çerçevesinde Doğu vektörü
-    final hx = m.y * a.z - m.z * a.y;
-    final hy = m.z * a.x - m.x * a.z;
-    final hz = m.x * a.y - m.y * a.x;
-    final hNorm = math.sqrt(hx * hx + hy * hy + hz * hz);
-    if (hNorm < 0.1) return;
+  void _onGyro(GyroscopeEvent omega) {
+    if (!_headingInit) return;
+
+    final now = DateTime.now();
+    final dt = _lastGyroTime != null
+        ? now.difference(_lastGyroTime!).inMicroseconds / 1e6
+        : 0.02;
+    _lastGyroTime = now;
+    if (dt <= 0 || dt > 0.1) return;
+
+    final a = _acc;
+    if (a == null) return;
 
     final aNorm = math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
     if (aNorm < 0.1) return;
 
+    // Dünya dikey (Up) eksenine yansıyan açısal hız = yalnızca yaw bileşeni.
+    // Sağ el kuralı: yukarıdan bakınca + = saat yönü tersi = heading azalır.
+    final yawRate = (omega.x * a.x + omega.y * a.y + omega.z * a.z) / aNorm;
+    _heading = (_heading - yawRate * dt * 180 / math.pi + 360) % 360;
+
+    // Mag+acc mutlak referansıyla yavaş düzeltme (%2/adım ≈ 1 sn'de yakınsama)
+    final magH = _magAccHeading();
+    if (magH != null) {
+      double diff = magH - _heading;
+      if (diff > 180) diff -= 360;
+      if (diff < -180) diff += 360;
+      _heading = (_heading + 0.02 * diff + 360) % 360;
+    }
+
+    _headingDirty = true;
+  }
+
+  // Tilt-compensated mutlak heading (mag+acc).
+  // Eğmeye karşı teorik olarak değişmez; jiroskop sürüklenme düzeltmesi için kullanılır.
+  double? _magAccHeading() {
+    final a = _acc; final m = _mag;
+    if (a == null || m == null) return null;
+
+    final hx = m.y * a.z - m.z * a.y;
+    final hy = m.z * a.x - m.x * a.z;
+    final hz = m.x * a.y - m.y * a.x;
+    final hNorm = math.sqrt(hx * hx + hy * hy + hz * hz);
+    if (hNorm < 0.1) return null;
+
+    final aNorm = math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+    if (aNorm < 0.1) return null;
+
     final hnx = hx / hNorm; final hny = hy / hNorm; final hnz = hz / hNorm;
     final anx = a.x / aNorm; final any = a.y / aNorm; final anz = a.z / aNorm;
 
-    // N = gravity cross H → cihaz çerçevesinde Kuzey vektörü
     final mny = anz * hnx - anx * hnz;
     final mnz = anx * hny - any * hnx;
 
-    // Telefon eğimine göre ağırlıklı bearing:
-    //  • Düz tutulunca: +Y (ekran üstü) yönü kullan
-    //  • Dikey tutulunca: -Z (bakış yönü = ekranın içi) yönü kullan
-    // Her eksenin yatay düzlemdeki iz büyüklüğü = ağırlığı belirler.
-    final yHoriz = math.sqrt(hny * hny + mny * mny);
-    final zHoriz = math.sqrt(hnz * hnz + mnz * mnz);
+    // Her eksenin yatay bileşeni kadar ağırlık ver (+Y düz, -Z dikey için)
+    final yH = math.sqrt(hny * hny + mny * mny);
+    final zH = math.sqrt(hnz * hnz + mnz * mnz);
+    if (yH + zH < 0.01) return null;
 
-    final bearingY = math.atan2(hny, mny);       // +Y yönünün açısı
-    final bearingZ = math.atan2(-hnz, -mnz);     // -Z yönünün açısı
-
-    // Dairesel ağırlıklı ortalama
-    final wyc = yHoriz * math.cos(bearingY);
-    final wys = yHoriz * math.sin(bearingY);
-    final wzc = zHoriz * math.cos(bearingZ);
-    final wzs = zHoriz * math.sin(bearingZ);
-
-    if ((wyc + wzc).abs() < 0.001 && (wys + wzs).abs() < 0.001) return;
-    final raw = (math.atan2(wys + wzs, wyc + wzc) * 180 / math.pi + 360) % 360;
-
-    double diff = raw - _heading;
-    if (diff > 180) diff -= 360;
-    if (diff < -180) diff += 360;
-    setState(() => _heading = (_heading + diff * 0.15 + 360) % 360);
+    final cx = yH * math.cos(math.atan2(hny, mny)) +
+               zH * math.cos(math.atan2(-hnz, -mnz));
+    final cy = yH * math.sin(math.atan2(hny, mny)) +
+               zH * math.sin(math.atan2(-hnz, -mnz));
+    return (math.atan2(cy, cx) * 180 / math.pi + 360) % 360;
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    _renderTicker?.cancel();
     _accSub?.cancel();
     _magSub?.cancel();
+    _gyroSub?.cancel();
     super.dispose();
   }
 
