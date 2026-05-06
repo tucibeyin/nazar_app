@@ -121,9 +121,7 @@ class _TesbihatScreenState extends State<TesbihatScreen>
   void _sifirla() {
     HapticFeedback.mediumImpact();
     setState(() {
-      for (int i = 0; i < _sayilar.length; i++) {
-        _sayilar[i] = 0;
-      }
+      _sayilar.fillRange(0, _sayilar.length, 0);
       _aktifIndex = 0;
       _tamamlandi = false;
     });
@@ -318,7 +316,7 @@ class _TesbihatScreenState extends State<TesbihatScreen>
           ),
           const SizedBox(height: 10),
           Text(
-            '33 Sübhanallah\n33 Elhamdülillah\n34 Allahu Ekber',
+            _dhikrler.map((d) => '${d.hedef} ${d.ad}').join('\n'),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,

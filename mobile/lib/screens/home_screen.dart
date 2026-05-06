@@ -424,6 +424,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   // ── Drawer ────────────────────────────────────────────────────────────────
 
+  static const _kBlue = Color(0xFF7EC8E3);
+
+  static const _drawerEntries = [
+    _DrawerEntry(icon: Icons.auto_stories_rounded,           title: 'Hatim İndir',      subtitle: 'Kaldığın yerden devam et',        route: '/hatim'),
+    _DrawerEntry(icon: Icons.people_alt_rounded,             title: 'Hatim Halkası',    subtitle: 'Toplulukla 30 cüzü paylaş',       route: '/hatim-halkasi',    iconColor: kGold),
+    _DrawerEntry(icon: Icons.shield_rounded,                 title: 'Benim Cevşenim',   subtitle: 'Kişisel okuma listen',            route: '/cevsen'),
+    _DrawerEntry(icon: Icons.favorite_rounded,               title: 'Manevi İlkyardım', subtitle: 'Ferahlat, sakin ol',              route: '/ilkyardim',        iconColor: _kBlue),
+    _DrawerEntry(icon: Icons.auto_awesome_rounded,           title: 'Esmaül Hüsna',     subtitle: "Allah'ın 99 ismi & zikir",        route: '/esma-listesi',     iconColor: kGold),
+    _DrawerEntry(icon: Icons.mosque_rounded,                 title: 'İbadet Asistanı',  subtitle: 'Namaz vakitleri & kıble',         route: '/ibadet',           iconColor: kGold),
+    _DrawerEntry(icon: Icons.self_improvement_rounded,       title: 'Namaz Kılavuzu',   subtitle: 'Adım adım namaz rehberi',         route: '/namaz-kilavuzu',   iconColor: kGold),
+    _DrawerEntry(icon: Icons.radio_button_checked_rounded,   title: 'Tesbihat',         subtitle: '33 + 33 + 34 zikir sayacı',      route: '/tesbihat',         iconColor: kGold),
+    _DrawerEntry(icon: Icons.checklist_rounded,              title: 'Kaza Çetelesi',    subtitle: 'Namaz & oruç takibi',             route: '/kaza-takip',       iconColor: _kBlue),
+    _DrawerEntry(icon: Icons.backup_rounded,                 title: 'Yedekleme',        subtitle: 'Verilerini yedekle & geri yükle', route: '/backup',           iconColor: kGold),
+  ];
+
   Widget _buildDrawer(bool isDark) {
     final bg = isDark ? kDarkBg : kBg;
     final textColor = isDark ? kGold : kGreen;
@@ -458,201 +473,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-            const SizedBox(height: 16),
-            ListTile(
-              leading: Icon(Icons.auto_stories_rounded, color: textColor),
-              title: Text(
-                'Hatim İndir',
-                style: GoogleFonts.cormorantGaramond(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                ),
-              ),
-              subtitle: Text(
-                'Kaldığın yerden devam et',
-                style: TextStyle(fontSize: 12, color: subColor),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                context.push('/hatim');
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.people_alt_rounded,
-                  color: kGold.withValues(alpha: 0.85)),
-              title: Text(
-                'Hatim Halkası',
-                style: GoogleFonts.cormorantGaramond(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                ),
-              ),
-              subtitle: Text(
-                'Toplulukla 30 cüzü paylaş',
-                style: TextStyle(fontSize: 12, color: subColor),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                context.push('/hatim-halkasi');
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.shield_rounded, color: textColor),
-              title: Text(
-                'Benim Cevşenim',
-                style: GoogleFonts.cormorantGaramond(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                ),
-              ),
-              subtitle: Text(
-                'Kişisel okuma listen',
-                style: TextStyle(fontSize: 12, color: subColor),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                context.push('/cevsen');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.favorite_rounded, color: Color(0xFF7EC8E3)),
-              title: Text(
-                'Manevi İlkyardım',
-                style: GoogleFonts.cormorantGaramond(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                ),
-              ),
-              subtitle: Text(
-                'Ferahlat, sakin ol',
-                style: TextStyle(fontSize: 12, color: subColor),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                context.push('/ilkyardim');
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.auto_awesome_rounded, color: kGold.withValues(alpha: 0.85)),
-              title: Text(
-                'Esmaül Hüsna',
-                style: GoogleFonts.cormorantGaramond(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                ),
-              ),
-              subtitle: Text(
-                "Allah'ın 99 ismi & zikir",
-                style: TextStyle(fontSize: 12, color: subColor),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                context.push('/esma-listesi');
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.mosque_rounded, color: kGold.withValues(alpha: 0.75)),
-              title: Text(
-                'İbadet Asistanı',
-                style: GoogleFonts.cormorantGaramond(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                ),
-              ),
-              subtitle: Text(
-                'Namaz vakitleri & kıble',
-                style: TextStyle(fontSize: 12, color: subColor),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                context.push('/ibadet');
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.self_improvement_rounded,
-                  color: kGold.withValues(alpha: 0.75)),
-              title: Text(
-                'Namaz Kılavuzu',
-                style: GoogleFonts.cormorantGaramond(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                ),
-              ),
-              subtitle: Text(
-                'Adım adım namaz rehberi',
-                style: TextStyle(fontSize: 12, color: subColor),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                context.push('/namaz-kilavuzu');
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.radio_button_checked_rounded,
-                  color: kGold.withValues(alpha: 0.75)),
-              title: Text(
-                'Tesbihat',
-                style: GoogleFonts.cormorantGaramond(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                ),
-              ),
-              subtitle: Text(
-                '33 + 33 + 34 zikir sayacı',
-                style: TextStyle(fontSize: 12, color: subColor),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                context.push('/tesbihat');
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.checklist_rounded, color: const Color(0xFF7EC8E3).withValues(alpha: 0.8)),
-              title: Text(
-                'Kaza Çetelesi',
-                style: GoogleFonts.cormorantGaramond(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                ),
-              ),
-              subtitle: Text(
-                'Namaz & oruç takibi',
-                style: TextStyle(fontSize: 12, color: subColor),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                context.push('/kaza-takip');
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.backup_rounded,
-                  color: kGold.withValues(alpha: 0.75)),
-              title: Text(
-                'Yedekleme',
-                style: GoogleFonts.cormorantGaramond(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                ),
-              ),
-              subtitle: Text(
-                'Verilerini yedekle & geri yükle',
-                style: TextStyle(fontSize: 12, color: subColor),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                context.push('/backup');
-              },
-            ),
+                    const SizedBox(height: 16),
+                    for (final e in _drawerEntries)
+                      _buildDrawerTile(e, textColor, subColor),
                   ],
                 ),
               ),
@@ -676,6 +499,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDrawerTile(_DrawerEntry e, Color textColor, Color subColor) {
+    return ListTile(
+      leading: Icon(e.icon, color: e.iconColor ?? textColor),
+      title: Text(
+        e.title,
+        style: GoogleFonts.cormorantGaramond(
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          color: textColor,
+        ),
+      ),
+      subtitle: Text(e.subtitle, style: TextStyle(fontSize: 12, color: subColor)),
+      onTap: () {
+        Navigator.of(context).pop();
+        context.push(e.route);
+      },
     );
   }
 
@@ -839,6 +681,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       ),
     );
   }
+}
+
+// ─── Drawer veri modeli ───────────────────────────────────────────────────────
+
+class _DrawerEntry {
+  final IconData icon;
+  final Color? iconColor; // null → theme textColor kullanılır
+  final String title;
+  final String subtitle;
+  final String route;
+
+  const _DrawerEntry({
+    required this.icon,
+    this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.route,
+  });
 }
 
 // ─── Drawer icon button ───────────────────────────────────────────────────────

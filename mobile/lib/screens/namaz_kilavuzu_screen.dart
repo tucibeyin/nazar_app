@@ -191,6 +191,7 @@ class _NamazKilavuzuScreenState extends State<NamazKilavuzuScreen>
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (_, i) => _NamazKartWidget(
                   namaz: namazliste[i],
+                  index: i,
                   onTap: () => _secNamaz(namazliste[i]),
                 ),
               ),
@@ -496,8 +497,9 @@ class _Step {
 
 class _NamazKartWidget extends StatelessWidget {
   final NamazProgrami namaz;
+  final int index;
   final VoidCallback onTap;
-  const _NamazKartWidget({required this.namaz, required this.onTap});
+  const _NamazKartWidget({required this.namaz, required this.index, required this.onTap});
 
   static const _icons = [
     Icons.wb_twilight_rounded,
@@ -516,9 +518,8 @@ class _NamazKartWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final idx = ['Sabah', 'Öğle', 'İkindi', 'Akşam', 'Yatsı'].indexOf(namaz.ad);
-    final ic = _icons[idx < 0 ? 0 : idx];
-    final cl = _colors[idx < 0 ? 0 : idx];
+    final ic = _icons[index.clamp(0, _icons.length - 1)];
+    final cl = _colors[index.clamp(0, _colors.length - 1)];
 
     return InkWell(
       onTap: onTap,
