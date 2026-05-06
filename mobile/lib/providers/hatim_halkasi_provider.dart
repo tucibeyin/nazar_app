@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
+import '../config/api_config.dart';
 import '../models/hatim_room.dart';
 import '../providers/service_providers.dart';
 import '../services/api_service.dart';
@@ -37,9 +40,27 @@ class HatimHalkasiState {
 
 class HatimHalkasiNotifier extends StateNotifier<HatimHalkasiState> {
   final ApiService _api;
-  Timer? _pollTimer;
 
-  HatimHalkasiNotifier(this._api) : super(const HatimHalkasiState());
+  // Injectable for testing — null means no WebSocket (HTTP polling only).
+  final WebSocketChannel Function(Uri)? _wsConnect;
+
+  WebSocketChannel? _wsChannel;
+  StreamSubscription<dynamic>? _wsSub;
+  Timer? _reconnectTimer;
+  Timer? _pollTimer;
+  int _reconnectAttempts = 0;
+  bool _disposed = false;
+
+  static const _kMaxReconnects = 3;
+  static const _kReconnectDelays = [
+    Duration(seconds: 2),
+    Duration(seconds: 5),
+    Duration(seconds: 10),
+  ];
+
+  HatimHalkasiNotifier(this._api, {WebSocketChannel Function(Uri)? wsConnect})
+      : _wsConnect = wsConnect,
+        super(const HatimHalkasiState());
 
   Future<void> createRoom() async {
     state = state.copyWith(isLoading: true, clearError: true);
@@ -50,7 +71,7 @@ class HatimHalkasiNotifier extends StateNotifier<HatimHalkasiState> {
         juzler: room.juzler,
         isLoading: false,
       );
-      _startPolling();
+      _startLiveSync(room.code);
     } on ApiException catch (e) {
       state = state.copyWith(isLoading: false, error: e.message);
     }
@@ -65,7 +86,7 @@ class HatimHalkasiNotifier extends StateNotifier<HatimHalkasiState> {
         juzler: room.juzler,
         isLoading: false,
       );
-      _startPolling();
+      _startLiveSync(room.code);
     } on ApiException catch (e) {
       state = state.copyWith(isLoading: false, error: e.message);
     }
@@ -78,7 +99,7 @@ class HatimHalkasiNotifier extends StateNotifier<HatimHalkasiState> {
       final room = await _api.getHatimRoom(code);
       state = state.copyWith(juzler: room.juzler);
     } on ApiException {
-      // Polling hatası sessizce geçilir; manual refresh hata gösterir
+      // Polling/refresh hatası sessizce geçilir
     }
   }
 
@@ -93,38 +114,105 @@ class HatimHalkasiNotifier extends StateNotifier<HatimHalkasiState> {
     try {
       await _api.updateHatimJuz(code, juzNum, durum.name);
     } on ApiException catch (e) {
-      // Rollback ve hata göster
       await refresh();
       state = state.copyWith(error: e.message);
     }
   }
 
   void leaveRoom() {
-    _stopPolling();
+    _stopLiveSync();
     state = const HatimHalkasiState();
   }
 
-  void _startPolling() {
-    _stopPolling();
+  // ── Live Sync (WebSocket öncelikli, HTTP polling yedek) ───────────────────
+
+  void _startLiveSync(String code) {
+    _stopLiveSync();
+    _reconnectAttempts = 0;
+    if (_wsConnect != null) {
+      _connectWebSocket(code);
+    } else {
+      _startHttpPolling();
+    }
+  }
+
+  void _connectWebSocket(String code) {
+    if (_disposed) return;
+    try {
+      final uri = Uri.parse(ApiConfig.wsHatimHalkasiUrl(code));
+      _wsChannel = _wsConnect!(uri);
+      _wsSub = _wsChannel!.stream.listen(
+        (data) {
+          if (_disposed || state.roomCode != code) return;
+          try {
+            final json = jsonDecode(data as String) as Map<String, dynamic>;
+            if (json.containsKey('code')) {
+              final room = HatimRoom.fromJson(json);
+              state = state.copyWith(juzler: room.juzler);
+              _reconnectAttempts = 0;
+            }
+          } catch (_) {}
+        },
+        onError: (_) => _scheduleReconnect(code),
+        onDone: () => _scheduleReconnect(code),
+        cancelOnError: false,
+      );
+    } catch (_) {
+      _scheduleReconnect(code);
+    }
+  }
+
+  void _scheduleReconnect(String code) {
+    if (_disposed || state.roomCode != code) return;
+    _wsSub?.cancel();
+    _wsChannel?.sink.close();
+    _wsChannel = null;
+    _wsSub = null;
+
+    if (_reconnectAttempts >= _kMaxReconnects) {
+      _startHttpPolling();
+      return;
+    }
+
+    final delay = _kReconnectDelays[_reconnectAttempts];
+    _reconnectAttempts++;
+    _reconnectTimer = Timer(delay, () {
+      if (!_disposed && state.roomCode == code) _connectWebSocket(code);
+    });
+  }
+
+  void _startHttpPolling() {
+    _pollTimer?.cancel();
     _pollTimer = Timer.periodic(
-      const Duration(seconds: 10),
+      const Duration(seconds: 15),
       (_) => refresh(),
     );
   }
 
-  void _stopPolling() {
+  void _stopLiveSync() {
+    _wsSub?.cancel();
+    _wsChannel?.sink.close();
+    _reconnectTimer?.cancel();
     _pollTimer?.cancel();
+    _wsChannel = null;
+    _wsSub = null;
+    _reconnectTimer = null;
     _pollTimer = null;
+    _reconnectAttempts = 0;
   }
 
   @override
   void dispose() {
-    _stopPolling();
+    _disposed = true;
+    _stopLiveSync();
     super.dispose();
   }
 }
 
 final hatimHalkasiProvider =
     StateNotifierProvider<HatimHalkasiNotifier, HatimHalkasiState>(
-  (ref) => HatimHalkasiNotifier(ref.read(apiServiceProvider)),
+  (ref) => HatimHalkasiNotifier(
+    ref.read(apiServiceProvider),
+    wsConnect: WebSocketChannel.connect,
+  ),
 );

@@ -24,8 +24,13 @@ class _HatimHalkasiScreenState extends ConsumerState<HatimHalkasiScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(hatimHalkasiProvider);
     final isDark = ref.watch(themeProvider) == ThemeMode.dark;
+    final roomCode = ref.watch(
+      hatimHalkasiProvider.select((s) => s.roomCode),
+    );
+    final isLoadingNoRoom = ref.watch(
+      hatimHalkasiProvider.select((s) => s.isLoading && s.roomCode == null),
+    );
 
     ref.listen<HatimHalkasiState>(hatimHalkasiProvider, (prev, next) {
       if (next.error != null && next.error != prev?.error) {
@@ -56,7 +61,7 @@ class _HatimHalkasiScreenState extends ConsumerState<HatimHalkasiScreen> {
             color: isDark ? kGold : kGreen,
           ),
         ),
-        actions: state.roomCode != null
+        actions: roomCode != null
             ? [
                 IconButton(
                   icon: Icon(Icons.exit_to_app_rounded,
@@ -67,15 +72,11 @@ class _HatimHalkasiScreenState extends ConsumerState<HatimHalkasiScreen> {
               ]
             : [],
       ),
-      body: state.isLoading && state.roomCode == null
+      body: isLoadingNoRoom
           ? const Center(child: CircularProgressIndicator(color: kGold))
-          : state.roomCode == null
+          : roomCode == null
               ? _LobbyView(isDark: isDark)
-              : _RoomView(
-                  state: state,
-                  isDark: isDark,
-                  inviteKey: _inviteKey,
-                ),
+              : _RoomView(isDark: isDark, inviteKey: _inviteKey),
     );
   }
 
@@ -218,19 +219,28 @@ class _LobbyView extends ConsumerWidget {
 // ─── Oda Görünümü ─────────────────────────────────────────────────────────────
 
 class _RoomView extends ConsumerWidget {
-  final HatimHalkasiState state;
   final bool isDark;
   final GlobalKey inviteKey;
-  const _RoomView({
-    required this.state,
-    required this.isDark,
-    required this.inviteKey,
-  });
+  const _RoomView({required this.isDark, required this.inviteKey});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final completed = state.juzler.where((j) => j.durum == JuzDurum.okundu).length;
-    final inProgress = state.juzler.where((j) => j.durum == JuzDurum.alindi).length;
+    final roomCode = ref.watch(
+      hatimHalkasiProvider.select((s) => s.roomCode ?? ''),
+    );
+    final completed = ref.watch(
+      hatimHalkasiProvider.select(
+        (s) => s.juzler.where((j) => j.durum == JuzDurum.okundu).length,
+      ),
+    );
+    final inProgress = ref.watch(
+      hatimHalkasiProvider.select(
+        (s) => s.juzler.where((j) => j.durum == JuzDurum.alindi).length,
+      ),
+    );
+    final isLoading = ref.watch(
+      hatimHalkasiProvider.select((s) => s.isLoading),
+    );
 
     return Column(
       children: [
@@ -240,7 +250,7 @@ class _RoomView extends ConsumerWidget {
           children: [
             RepaintBoundary(
               key: inviteKey,
-              child: _HatimInviteCard(code: state.roomCode!),
+              child: _HatimInviteCard(code: roomCode),
             ),
             Positioned(
               top: 8,
@@ -248,8 +258,7 @@ class _RoomView extends ConsumerWidget {
               child: GestureDetector(
                 onTap: () => SocialShareService.shareWidgetAsImage(
                   inviteKey,
-                  text:
-                      'Hatim halkamıza katıl! Oda kodu: ${state.roomCode}',
+                  text: 'Hatim halkamıza katıl! Oda kodu: $roomCode',
                 ),
                 child: Container(
                   padding: const EdgeInsets.all(7),
@@ -281,27 +290,19 @@ class _RoomView extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           child: Row(
             children: [
-              _StatChip(
-                  count: completed,
-                  label: 'Tamamlandı',
-                  color: kGreen),
+              _StatChip(count: completed, label: 'Tamamlandı', color: kGreen),
               const SizedBox(width: 8),
-              _StatChip(
-                  count: inProgress,
-                  label: 'Okunuyor',
-                  color: kGold),
+              _StatChip(count: inProgress, label: 'Okunuyor', color: kGold),
               const Spacer(),
-              if (state.isLoading)
+              if (isLoading)
                 const SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: kGold),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: kGold),
                 )
               else
                 GestureDetector(
-                  onTap: () =>
-                      ref.read(hatimHalkasiProvider.notifier).refresh(),
+                  onTap: () => ref.read(hatimHalkasiProvider.notifier).refresh(),
                   child: Icon(Icons.refresh_rounded,
                       size: 20,
                       color: isDark
@@ -316,20 +317,17 @@ class _RoomView extends ConsumerWidget {
         Expanded(
           child: RefreshIndicator(
             color: kGold,
-            onRefresh: () =>
-                ref.read(hatimHalkasiProvider.notifier).refresh(),
+            onRefresh: () => ref.read(hatimHalkasiProvider.notifier).refresh(),
             child: GridView.builder(
               padding: const EdgeInsets.all(12),
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 mainAxisSpacing: 8,
                 crossAxisSpacing: 8,
                 childAspectRatio: 0.82,
               ),
-              itemCount: state.juzler.length,
-              itemBuilder: (ctx, i) =>
-                  _JuzCard(juz: state.juzler[i], isDark: isDark),
+              itemCount: 30,
+              itemBuilder: (ctx, i) => _JuzCard(juzNum: i + 1, isDark: isDark),
             ),
           ),
         ),
@@ -487,17 +485,27 @@ class _StatChip extends StatelessWidget {
 // ─── Cüz Kartı ────────────────────────────────────────────────────────────────
 
 class _JuzCard extends ConsumerWidget {
-  final JuzItem juz;
+  final int juzNum;
   final bool isDark;
-  const _JuzCard({required this.juz, required this.isDark});
+  const _JuzCard({required this.juzNum, required this.isDark});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Sadece bu cüzün durumu değişince rebuild edilir.
+    final durum = ref.watch(
+      hatimHalkasiProvider.select(
+        (s) => s.juzler.firstWhere(
+          (j) => j.juzNum == juzNum,
+          orElse: () => JuzItem(juzNum: juzNum, durum: JuzDurum.bos),
+        ).durum,
+      ),
+    );
+
     final (bgColor, borderColor, labelColor, statusText, statusIcon) =
-        _style();
+        _style(durum);
 
     return GestureDetector(
-      onTap: juz.durum != JuzDurum.okundu ? () => _onTap(context, ref) : null,
+      onTap: durum != JuzDurum.okundu ? () => _onTap(context, ref, durum) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeOut,
@@ -505,7 +513,7 @@ class _JuzCard extends ConsumerWidget {
           color: bgColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: borderColor, width: 1.2),
-          boxShadow: juz.durum == JuzDurum.okundu
+          boxShadow: durum == JuzDurum.okundu
               ? [
                   BoxShadow(
                     color: kGreen.withValues(alpha: 0.12),
@@ -519,13 +527,11 @@ class _JuzCard extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              '${juz.juzNum}',
+              '$juzNum',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.88)
-                    : kGreen,
+                color: isDark ? Colors.white.withValues(alpha: 0.88) : kGreen,
               ),
             ),
             Text(
@@ -555,42 +561,42 @@ class _JuzCard extends ConsumerWidget {
     );
   }
 
-  (Color, Color, Color, String, IconData?) _style() => switch (juz.durum) {
-    JuzDurum.alindi => (
-      kGold.withValues(alpha: isDark ? 0.18 : 0.12),
-      kGold.withValues(alpha: 0.55),
-      isDark ? kGold : const Color(0xFF8B6914),
-      'Okunuyor',
-      Icons.auto_stories_rounded,
-    ),
-    JuzDurum.okundu => (
-      kGreen.withValues(alpha: isDark ? 0.22 : 0.13),
-      kGreen.withValues(alpha: 0.5),
-      kGreen,
-      'Bitti',
-      Icons.check_circle_rounded,
-    ),
-    JuzDurum.bos => (
-      isDark
-          ? Colors.white.withValues(alpha: 0.04)
-          : Colors.white.withValues(alpha: 0.82),
-      isDark
-          ? Colors.white.withValues(alpha: 0.12)
-          : kGreen.withValues(alpha: 0.15),
-      isDark ? Colors.white38 : kGreen.withValues(alpha: 0.4),
-      'Boş',
-      null,
-    ),
-  };
+  (Color, Color, Color, String, IconData?) _style(JuzDurum durum) =>
+      switch (durum) {
+        JuzDurum.alindi => (
+          kGold.withValues(alpha: isDark ? 0.18 : 0.12),
+          kGold.withValues(alpha: 0.55),
+          isDark ? kGold : const Color(0xFF8B6914),
+          'Okunuyor',
+          Icons.auto_stories_rounded,
+        ),
+        JuzDurum.okundu => (
+          kGreen.withValues(alpha: isDark ? 0.22 : 0.13),
+          kGreen.withValues(alpha: 0.5),
+          kGreen,
+          'Bitti',
+          Icons.check_circle_rounded,
+        ),
+        JuzDurum.bos => (
+          isDark
+              ? Colors.white.withValues(alpha: 0.04)
+              : Colors.white.withValues(alpha: 0.82),
+          isDark
+              ? Colors.white.withValues(alpha: 0.12)
+              : kGreen.withValues(alpha: 0.15),
+          isDark ? Colors.white38 : kGreen.withValues(alpha: 0.4),
+          'Boş',
+          null,
+        ),
+      };
 
-  void _onTap(BuildContext context, WidgetRef ref) {
-    if (juz.durum == JuzDurum.bos) {
+  void _onTap(BuildContext context, WidgetRef ref, JuzDurum durum) {
+    if (durum == JuzDurum.bos) {
       showDialog<void>(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text('${juz.juzNum}. Cüz'),
-          content: const Text(
-              'Bu cüzü okumak üzere almak istiyor musun?'),
+          title: Text('$juzNum. Cüz'),
+          content: const Text('Bu cüzü okumak üzere almak istiyor musun?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -601,14 +607,14 @@ class _JuzCard extends ConsumerWidget {
                 Navigator.pop(context);
                 ref
                     .read(hatimHalkasiProvider.notifier)
-                    .updateJuz(juz.juzNum, JuzDurum.alindi);
+                    .updateJuz(juzNum, JuzDurum.alindi);
               },
               child: const Text('Evet, Al'),
             ),
           ],
         ),
       );
-    } else if (juz.durum == JuzDurum.alindi) {
+    } else if (durum == JuzDurum.alindi) {
       showModalBottomSheet<void>(
         context: context,
         backgroundColor: isDark ? const Color(0xFF1A2830) : Colors.white,
@@ -630,7 +636,7 @@ class _JuzCard extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                '${juz.juzNum}. Cüz — Okunuyor',
+                '$juzNum. Cüz — Okunuyor',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
@@ -639,25 +645,23 @@ class _JuzCard extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               ListTile(
-                leading:
-                    const Icon(Icons.check_circle_rounded, color: kGreen),
+                leading: const Icon(Icons.check_circle_rounded, color: kGreen),
                 title: const Text('Cüzü Okudum (Tamamla)'),
                 onTap: () {
                   Navigator.pop(ctx);
                   ref
                       .read(hatimHalkasiProvider.notifier)
-                      .updateJuz(juz.juzNum, JuzDurum.okundu);
+                      .updateJuz(juzNum, JuzDurum.okundu);
                 },
               ),
               ListTile(
-                leading: Icon(Icons.undo_rounded,
-                    color: Colors.red.shade400),
+                leading: Icon(Icons.undo_rounded, color: Colors.red.shade400),
                 title: const Text('Geri Bırak (Boşalt)'),
                 onTap: () {
                   Navigator.pop(ctx);
                   ref
                       .read(hatimHalkasiProvider.notifier)
-                      .updateJuz(juz.juzNum, JuzDurum.bos);
+                      .updateJuz(juzNum, JuzDurum.bos);
                 },
               ),
               const SizedBox(height: 8),

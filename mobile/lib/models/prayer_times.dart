@@ -40,6 +40,15 @@ class PrayerTimesData {
         yatsi: json['yatsi'] as String,
       );
 
+  Map<String, dynamic> toJson() => {
+        'imsak': imsak,
+        'gunes': gunes,
+        'ogle': ogle,
+        'ikindi': ikindi,
+        'aksam': aksam,
+        'yatsi': yatsi,
+      };
+
   List<(String, DateTime)> get vakitler => [
         ('İmsak', _parse(imsak)),
         ('Güneş', _parse(gunes)),

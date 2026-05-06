@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nazar_app/models/prayer_times.dart';
 
-PrayerTimesData _istanbulPt() => PrayerTimesData(
+PrayerTimesData _istanbulPt() => const PrayerTimesData(
       lat: 41.0,
       lng: 28.9,
       imsak: '04:30',
@@ -61,7 +61,7 @@ void main() {
     });
 
     test('bozuk format için çökmez', () {
-      final pt = PrayerTimesData(
+      const pt = PrayerTimesData(
         lat: 0, lng: 0,
         imsak: 'XX:YY', gunes: '06:00', ogle: '12:00',
         ikindi: '15:00', aksam: '18:00', yatsi: '20:00',
@@ -70,7 +70,7 @@ void main() {
     });
 
     test('eksik kolon için _parse güvenli döner', () {
-      final pt = PrayerTimesData(
+      const pt = PrayerTimesData(
         lat: 0, lng: 0,
         imsak: '--:--', gunes: '06:00', ogle: '12:00',
         ikindi: '15:00', aksam: '18:00', yatsi: '20:00',
@@ -139,7 +139,7 @@ void main() {
     });
 
     test('Mekke konumundan qibla tanımsız değil', () {
-      final pt = PrayerTimesData(
+      const pt = PrayerTimesData(
         lat: 21.4225, lng: 39.8262,
         imsak: '04:00', gunes: '05:30', ogle: '12:00',
         ikindi: '15:00', aksam: '18:00', yatsi: '19:30',
@@ -169,7 +169,7 @@ void main() {
     });
 
     test('Mekke\'nin kendisinden mesafe ~0', () {
-      final pt = PrayerTimesData(
+      const pt = PrayerTimesData(
         lat: 21.4225, lng: 39.8262,
         imsak: '04:00', gunes: '05:30', ogle: '12:00',
         ikindi: '15:00', aksam: '18:00', yatsi: '19:30',

@@ -24,4 +24,13 @@ class ApiConfig {
   static String hatimHalkasiJuzEndpoint(String code, int juzNum) =>
       '$baseUrl/api/v1/hatim-halkasi/$code/juz/$juzNum';
   static String audioUrl(String mp3Path) => '$baseUrl$mp3Path';
+
+  // WebSocket URL: https → wss, http → ws
+  static String wsHatimHalkasiUrl(String code) {
+    final wsBase = baseUrl
+        .replaceFirst('https://', 'wss://')
+        .replaceFirst('http://', 'ws://');
+    final keyParam = apiKey.isNotEmpty ? '?api_key=$apiKey' : '';
+    return '$wsBase/ws/hatim-halkasi/$code$keyParam';
+  }
 }

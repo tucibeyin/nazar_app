@@ -120,6 +120,8 @@ PACKAGES_RESPONSE: list[dict] = [
     for p in TERAPI_PAKETLERI
 ]
 
+TERAPI_PAKETLERI_MAP: dict[str, dict] = {p["id"]: p for p in TERAPI_PAKETLERI}
+
 log.info("terapi_paketleri_loaded", count=len(TERAPI_PAKETLERI))
 
 # ─── Esmaül Hüsna ─────────────────────────────────────────────────────────────

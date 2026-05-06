@@ -10,7 +10,7 @@ from datetime import date as _date
 import httpx
 import structlog
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi import FastAPI, HTTPException, Query, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -19,7 +19,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.middleware.gzip import GZipMiddleware
 
-from data import AYETLER, ESMAUL_HUSNA, PACKAGES_RESPONSE, TERAPI_PAKETLERI, ayet_lookup
+from data import AYETLER, ESMAUL_HUSNA, PACKAGES_RESPONSE, TERAPI_PAKETLERI_MAP, ayet_lookup
 from hatim_db import create_room, get_room, init_db, update_juz
 from middleware import ApiKeyMiddleware, TimingMiddleware
 from schemas import (
@@ -99,6 +99,36 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(TimingMiddleware)
 app.add_middleware(ApiKeyMiddleware, api_key=os.getenv("API_KEY", ""))
 
+# ─── WebSocket Bağlantı Yöneticisi ───────────────────────────────────────────
+
+
+class _WsConnectionManager:
+    """Oda koduna göre WebSocket bağlantılarını yönetir."""
+
+    def __init__(self) -> None:
+        self._rooms: dict[str, set[WebSocket]] = {}
+
+    async def connect(self, room_code: str, ws: WebSocket) -> None:
+        await ws.accept()
+        self._rooms.setdefault(room_code, set()).add(ws)
+
+    def disconnect(self, room_code: str, ws: WebSocket) -> None:
+        room = self._rooms.get(room_code)
+        if room:
+            room.discard(ws)
+            if not room:
+                del self._rooms[room_code]
+
+    async def broadcast(self, room_code: str, payload: dict) -> None:
+        for ws in list(self._rooms.get(room_code, set())):
+            try:
+                await ws.send_json(payload)
+            except Exception:
+                self.disconnect(room_code, ws)
+
+
+_ws_manager = _WsConnectionManager()
+
 # ─── Endpoint'ler ─────────────────────────────────────────────────────────────
 
 
@@ -161,7 +191,7 @@ async def get_packages(request: Request, response: Response) -> list[PackageResp
 async def get_package_detail(
     request: Request, response: Response, package_id: str
 ) -> PackageDetailResponse:
-    paket = next((p for p in TERAPI_PAKETLERI if p["id"] == package_id), None)
+    paket = TERAPI_PAKETLERI_MAP.get(package_id)
     if paket is None:
         raise HTTPException(status_code=404, detail="Paket bulunamadı.")
 
@@ -287,11 +317,42 @@ async def update_hatim_juz(
 ) -> JuzResponse:
     if not 1 <= juz_num <= 30:
         raise HTTPException(status_code=422, detail="Cüz numarası 1–30 arasında olmalı.")
-    updated = await update_juz(room_code.upper(), juz_num, body.durum)
+    code = room_code.upper()
+    updated = await update_juz(code, juz_num, body.durum)
     if not updated:
         raise HTTPException(status_code=404, detail="Cüz bulunamadı.")
-    log.info("juz_updated", room=room_code, juz=juz_num, durum=body.durum)
+    log.info("juz_updated", room=code, juz=juz_num, durum=body.durum)
+    # Odadaki WebSocket istemcilerine güncel durumu yayınla
+    if updated_room := await get_room(code):
+        await _ws_manager.broadcast(code, updated_room)
     return JuzResponse(juz_num=juz_num, durum=body.durum)
+
+
+# ─── Hatim Halkası — WebSocket ───────────────────────────────────────────────
+
+
+@app.websocket("/ws/hatim-halkasi/{room_code}")
+async def ws_hatim_room(ws: WebSocket, room_code: str, api_key: str = Query(default="")) -> None:
+    expected = os.getenv("API_KEY", "")
+    if expected and not secrets.compare_digest(api_key, expected):
+        await ws.close(code=4001)
+        return
+
+    code = room_code.upper()
+    room = await get_room(code)
+    if room is None:
+        await ws.close(code=4004)
+        return
+
+    await _ws_manager.connect(code, ws)
+    try:
+        await ws.send_json(room)
+        while True:
+            await ws.receive_text()
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
+        _ws_manager.disconnect(code, ws)
 
 
 # ── Statik Medya ──────────────────────────────────────────────────────────────

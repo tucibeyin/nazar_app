@@ -146,20 +146,49 @@ class ApiService {
         throw _fromStatus(resp.statusCode, 'Paket detayı alınamadı.');
       });
 
-  Future<PrayerTimesData> fetchPrayerTimes(double lat, double lng) =>
-      _withRetry('fetchPrayerTimes', () async {
-        final resp = await _client
-            .get(Uri.parse(ApiConfig.prayerTimesEndpoint(lat, lng)), headers: _headers)
-            .timeout(kPrayerTimesTimeout);
-        if (resp.statusCode == 200) {
-          return PrayerTimesData.fromJson(
-            jsonDecode(resp.body) as Map<String, dynamic>,
-            lat: lat,
-            lng: lng,
-          );
-        }
-        throw _fromStatus(resp.statusCode, 'Namaz vakitleri alınamadı.');
-      });
+  static const _kPrayerCacheDateKey = 'prayer_cache_date';
+  static const _kPrayerCacheLatKey  = 'prayer_cache_lat';
+  static const _kPrayerCacheLngKey  = 'prayer_cache_lng';
+  static const _kPrayerCacheDataKey = 'prayer_cache_data';
+
+  Future<PrayerTimesData> fetchPrayerTimes(double lat, double lng) async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final cachedDate = prefs.getString(_kPrayerCacheDateKey);
+    final cachedLat  = prefs.getDouble(_kPrayerCacheLatKey)  ?? 0.0;
+    final cachedLng  = prefs.getDouble(_kPrayerCacheLngKey)  ?? 0.0;
+    final cachedJson = prefs.getString(_kPrayerCacheDataKey);
+
+    if (cachedDate == today &&
+        cachedJson != null &&
+        (lat - cachedLat).abs() < 0.5 &&
+        (lng - cachedLng).abs() < 0.5) {
+      AppLogger.info('fetchPrayerTimes: günlük önbellekten yükleniyor');
+      return PrayerTimesData.fromJson(
+        jsonDecode(cachedJson) as Map<String, dynamic>,
+        lat: lat,
+        lng: lng,
+      );
+    }
+
+    return _withRetry('fetchPrayerTimes', () async {
+      final resp = await _client
+          .get(Uri.parse(ApiConfig.prayerTimesEndpoint(lat, lng)), headers: _headers)
+          .timeout(kPrayerTimesTimeout);
+      if (resp.statusCode == 200) {
+        await prefs.setString(_kPrayerCacheDateKey, today);
+        await prefs.setDouble(_kPrayerCacheLatKey,  lat);
+        await prefs.setDouble(_kPrayerCacheLngKey,  lng);
+        await prefs.setString(_kPrayerCacheDataKey, resp.body);
+        return PrayerTimesData.fromJson(
+          jsonDecode(resp.body) as Map<String, dynamic>,
+          lat: lat,
+          lng: lng,
+        );
+      }
+      throw _fromStatus(resp.statusCode, 'Namaz vakitleri alınamadı.');
+    });
+  }
 
   Future<List<Esma>> fetchEsmaulHusna() => _withRetry('fetchEsmaulHusna', () async {
         final resp = await _client
