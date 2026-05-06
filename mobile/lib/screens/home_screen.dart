@@ -457,6 +457,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 painter: UnvanDividerPainter(),
               ),
             ),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
             const SizedBox(height: 16),
             ListTile(
               leading: Icon(Icons.auto_stories_rounded, color: textColor),
@@ -652,7 +656,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 context.push('/backup');
               },
             ),
-            const Spacer(),
+                  ],
+                ),
+              ),
+            ),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: CustomPaint(
