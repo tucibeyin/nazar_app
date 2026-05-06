@@ -242,7 +242,7 @@ class _NamazKilavuzuScreenState extends State<NamazKilavuzuScreen>
                   child: LinearProgressIndicator(
                     value: progress,
                     backgroundColor: kGreen.withValues(alpha: 0.1),
-                    valueColor: AlwaysStoppedAnimation<Color>(kGold),
+                    valueColor: const AlwaysStoppedAnimation<Color>(kGold),
                     minHeight: 4,
                   ),
                 ),
@@ -280,7 +280,7 @@ class _NamazKilavuzuScreenState extends State<NamazKilavuzuScreen>
               color: kGold.withValues(alpha: 0.12),
               border: Border.all(color: kGold.withValues(alpha: 0.4), width: 2),
             ),
-            child: Icon(Icons.mosque_rounded, color: kGold, size: 36),
+            child: const Icon(Icons.mosque_rounded, color: kGold, size: 36),
           ),
           const SizedBox(height: 24),
           Text(
@@ -335,7 +335,7 @@ class _NamazKilavuzuScreenState extends State<NamazKilavuzuScreen>
                   ),
                   child: Text(
                     '×${adim.tekrar}',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
                       color: kGold,
                       fontWeight: FontWeight.w700,

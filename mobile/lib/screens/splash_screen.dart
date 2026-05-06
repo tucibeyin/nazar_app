@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../config/app_constants.dart';
+import '../core/logger.dart';
 import '../widgets/painters/painters.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -48,13 +49,17 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   Future<void> _loadCameras() async {
     try {
       _cameras = await availableCameras();
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.warning('availableCameras (1st attempt) failed: $e');
+    }
     if (_cameras.isEmpty && mounted) {
       await Future.delayed(const Duration(milliseconds: 800));
       if (!mounted) return;
       try {
         _cameras = await availableCameras();
-      } catch (_) {}
+      } catch (e) {
+        AppLogger.warning('availableCameras (2nd attempt) failed: $e');
+      }
     }
   }
 

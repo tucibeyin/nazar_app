@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 /// Aynı hash için tekrar istek atmaz; max [_maxSize] girdi tutar.
 class AyetRepository {
   final ApiService _api;
+  // LinkedHashMap semantics: insertion-order iteration → O(1) LRU eviction via keys.first
   final _cache = <int, Ayet>{};
   static const _maxSize = 50;
 

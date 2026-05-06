@@ -144,11 +144,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       AppLogger.info('Analysis started');
 
       final repo = ref.read(ayetRepositoryProvider);
-      final results = await Future.wait([
-        repo.fetchAyet(hashInt),
-        Future<void>.delayed(kMinAnalysisPause),
-      ]);
-      final ayet = results[0] as Ayet;
+      final ayetFuture = repo.fetchAyet(hashInt);
+      await Future.delayed(kMinAnalysisPause);
+      final ayet = await ayetFuture;
 
       _mysticCtrl.stop();
       _waveEnterCtrl.reset();
@@ -324,7 +322,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        _buildHeader(),
+                        _buildHeader(isDark),
                         _buildMainFrame(),
                         _buildButton(),
                         _buildFerahlatCard(isDark),
@@ -351,8 +349,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   // ── Header ────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader() {
-    final isDark = ref.watch(themeProvider) == ThemeMode.dark;
+  Widget _buildHeader(bool isDark) {
     final iconColor = isDark ? kGold : kGreen;
     final subtitleColor = isDark ? kDarkSubtext : kGreen;
 

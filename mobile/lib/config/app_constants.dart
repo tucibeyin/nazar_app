@@ -43,6 +43,8 @@ const kCameraFrameSize = 280.0; // dairesel kamera çerçevesi çapı
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
-const kApiTimeout   = Duration(seconds: 10);
-const kMaxRetries   = 3;
-const kRetryBackoff = Duration(seconds: 2);
+const kApiTimeout         = Duration(seconds: 10);
+const kPrayerTimesTimeout = Duration(seconds: 12);
+const kHatimRoomTimeout   = Duration(seconds: 8);
+const kMaxRetries         = 3;
+const kRetryBackoff       = Duration(seconds: 2);

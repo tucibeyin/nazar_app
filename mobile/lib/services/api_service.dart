@@ -150,7 +150,7 @@ class ApiService {
       _withRetry('fetchPrayerTimes', () async {
         final resp = await _client
             .get(Uri.parse(ApiConfig.prayerTimesEndpoint(lat, lng)), headers: _headers)
-            .timeout(const Duration(seconds: 12));
+            .timeout(kPrayerTimesTimeout);
         if (resp.statusCode == 200) {
           return PrayerTimesData.fromJson(
             jsonDecode(resp.body) as Map<String, dynamic>,
@@ -173,85 +173,69 @@ class ApiService {
         throw _fromStatus(resp.statusCode, 'Esmaül Hüsna listesi alınamadı.');
       });
 
+  // Hatim Halkası isteklerinde tekrarlanan ağ exception sarmalayıcısı.
+  Future<T> _wrapNetworkErrors<T>(Future<T> Function() fn) async {
+    try {
+      return await fn();
+    } on ApiException {
+      rethrow;
+    } on SocketException {
+      throw const ApiException('İnternet bağlantısı bulunamadı.');
+    } on TlsException {
+      throw const ApiException('Güvenli bağlantı kurulamadı.');
+    } on TimeoutException {
+      throw const ApiException('Bağlantı zaman aşımına uğradı.');
+    } on FormatException {
+      throw const ApiException('Sunucu yanıtı okunamadı.');
+    }
+  }
+
   // ── Hatim Halkası — POST / GET / PATCH direkt (retry yok, idempotent değil) ─
 
-  Future<HatimRoom> createHatimRoom() async {
-    try {
-      final resp = await _client
-          .post(
-            Uri.parse(ApiConfig.hatimHalkasiCreateEndpoint()),
-            headers: {..._headers, 'Content-Type': 'application/json'},
-          )
-          .timeout(kApiTimeout);
-      if (resp.statusCode == 201) {
-        return HatimRoom.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
-      }
-      throw _fromStatus(resp.statusCode, 'Oda oluşturulamadı.');
-    } on SocketException {
-      throw const ApiException('İnternet bağlantısı bulunamadı.');
-    } on TlsException {
-      throw const ApiException('Güvenli bağlantı kurulamadı.');
-    } on TimeoutException {
-      throw const ApiException('Sunucu yanıt vermedi. Lütfen tekrar deneyin.');
-    } on FormatException {
-      throw const ApiException('Sunucu yanıtı okunamadı.');
-    }
-  }
+  Future<HatimRoom> createHatimRoom() => _wrapNetworkErrors(() async {
+        final resp = await _client
+            .post(
+              Uri.parse(ApiConfig.hatimHalkasiCreateEndpoint()),
+              headers: {..._headers, 'Content-Type': 'application/json'},
+            )
+            .timeout(kApiTimeout);
+        if (resp.statusCode == 201) {
+          return HatimRoom.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
+        }
+        throw _fromStatus(resp.statusCode, 'Oda oluşturulamadı.');
+      });
 
-  Future<HatimRoom> getHatimRoom(String code) async {
-    try {
-      final resp = await _client
-          .get(
-            Uri.parse(ApiConfig.hatimHalkasiRoomEndpoint(code)),
-            headers: _headers,
-          )
-          .timeout(const Duration(seconds: 8));
-      if (resp.statusCode == 200) {
-        return HatimRoom.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
-      }
-      if (resp.statusCode == 404) {
-        throw const ApiException('Oda bulunamadı.', statusCode: 404);
-      }
-      throw _fromStatus(resp.statusCode, 'Oda bilgisi alınamadı.');
-    } on ApiException {
-      rethrow;
-    } on SocketException {
-      throw const ApiException('İnternet bağlantısı bulunamadı.');
-    } on TlsException {
-      throw const ApiException('Güvenli bağlantı kurulamadı.');
-    } on TimeoutException {
-      throw const ApiException('Bağlantı zaman aşımına uğradı.');
-    } on FormatException {
-      throw const ApiException('Sunucu yanıtı okunamadı.');
-    }
-  }
+  Future<HatimRoom> getHatimRoom(String code) => _wrapNetworkErrors(() async {
+        final resp = await _client
+            .get(
+              Uri.parse(ApiConfig.hatimHalkasiRoomEndpoint(code)),
+              headers: _headers,
+            )
+            .timeout(kHatimRoomTimeout);
+        if (resp.statusCode == 200) {
+          return HatimRoom.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
+        }
+        if (resp.statusCode == 404) {
+          throw const ApiException('Oda bulunamadı.', statusCode: 404);
+        }
+        throw _fromStatus(resp.statusCode, 'Oda bilgisi alınamadı.');
+      });
 
-  Future<void> updateHatimJuz(String code, int juzNum, String durum) async {
-    try {
-      final resp = await _client
-          .patch(
-            Uri.parse(ApiConfig.hatimHalkasiJuzEndpoint(code, juzNum)),
-            headers: {..._headers, 'Content-Type': 'application/json'},
-            body: jsonEncode({'durum': durum}),
-          )
-          .timeout(kApiTimeout);
-      if (resp.statusCode == 200) return;
-      if (resp.statusCode == 404) {
-        throw const ApiException('Cüz bulunamadı.', statusCode: 404);
-      }
-      throw _fromStatus(resp.statusCode, 'Cüz güncellenemedi.');
-    } on ApiException {
-      rethrow;
-    } on SocketException {
-      throw const ApiException('İnternet bağlantısı bulunamadı.');
-    } on TlsException {
-      throw const ApiException('Güvenli bağlantı kurulamadı.');
-    } on TimeoutException {
-      throw const ApiException('Bağlantı zaman aşımına uğradı.');
-    } on FormatException {
-      throw const ApiException('Sunucu yanıtı okunamadı.');
-    }
-  }
+  Future<void> updateHatimJuz(String code, int juzNum, String durum) =>
+      _wrapNetworkErrors(() async {
+        final resp = await _client
+            .patch(
+              Uri.parse(ApiConfig.hatimHalkasiJuzEndpoint(code, juzNum)),
+              headers: {..._headers, 'Content-Type': 'application/json'},
+              body: jsonEncode({'durum': durum}),
+            )
+            .timeout(kApiTimeout);
+        if (resp.statusCode == 200) return;
+        if (resp.statusCode == 404) {
+          throw const ApiException('Cüz bulunamadı.', statusCode: 404);
+        }
+        throw _fromStatus(resp.statusCode, 'Cüz güncellenemedi.');
+      });
 
   void dispose() => _client.close();
 }
