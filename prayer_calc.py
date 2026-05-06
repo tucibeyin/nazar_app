@@ -76,16 +76,7 @@ def prayer_times_local(lat: float, lng: float, dt: date) -> dict[str, str]:
     def _asr() -> float:
         # Hanefi: gölge katsayısı 2
         a = _rtd(math.atan(1.0 / (2 + math.tan(_dtr(abs(lat - dec))))))
-        try:
-            cos_t = (
-                math.sin(_dtr(a))
-                - math.sin(_dtr(lat)) * math.sin(_dtr(dec))
-            ) / (math.cos(_dtr(lat)) * math.cos(_dtr(dec)))
-        except ZeroDivisionError:
-            return float("nan")
-        if abs(cos_t) > 1:
-            return float("nan")
-        return dhuhr + _rtd(math.acos(cos_t)) / 15
+        return _hour_angle(a, after=True)
 
     fajr    = _hour_angle(-18.0,  after=False)
     sunrise = _hour_angle(-0.833, after=False)

@@ -34,6 +34,10 @@ class HatimAyetResponse(AyetResponse):
     index: int
     total: int
 
+    @classmethod
+    def from_raw(cls, raw: dict, *, index: int, total: int) -> "HatimAyetResponse":
+        return cls(index=index, total=total, **AyetResponse.from_raw(raw).model_dump())
+
 
 class PackageResponse(BaseModel):
     id: str

@@ -52,9 +52,15 @@ structlog.configure(
 
 log = structlog.get_logger()
 
+# ─── Yapılandırma ─────────────────────────────────────────────────────────────
+
+_RATE_LIMIT  = os.getenv("RATE_LIMIT", "30/minute")
+_PRAYER_RATE = os.getenv("PRAYER_RATE_LIMIT", "10/minute")
+_HALKA_RATE  = os.getenv("HALKA_RATE_LIMIT", "20/minute")
+_ALADHAN_URL = "https://api.aladhan.com/v1/timings"
+
 # ─── Rate Limiter ─────────────────────────────────────────────────────────────
 
-_RATE_LIMIT = os.getenv("RATE_LIMIT", "30/minute")
 limiter = Limiter(key_func=get_remote_address)
 
 # ─── App ──────────────────────────────────────────────────────────────────────
@@ -138,11 +144,7 @@ async def get_hatim_ayet(
 
     response.headers["Cache-Control"] = "public, max-age=86400, immutable"
     log.info("hatim_ayet_served", index=actual, remote=get_remote_address(request))
-    return HatimAyetResponse(
-        index=actual,
-        total=len(AYETLER),
-        **AyetResponse.from_raw(raw).model_dump(),
-    )
+    return HatimAyetResponse.from_raw(raw, index=actual, total=len(AYETLER))
 
 
 @app.get("/api/v1/packages", response_model=list[PackageResponse], tags=["packages"])
@@ -179,10 +181,6 @@ async def get_package_detail(
     )
 
 
-_ALADHAN_URL = "https://api.aladhan.com/v1/timings"
-_PRAYER_RATE = os.getenv("PRAYER_RATE_LIMIT", "10/minute")
-
-
 async def _fetch_aladhan(lat: float, lng: float) -> dict | None:
     """aladhan.com'dan vakitleri çeker; ulaşamazsa None döner."""
     try:
@@ -193,7 +191,8 @@ async def _fetch_aladhan(lat: float, lng: float) -> dict | None:
             )
             r.raise_for_status()
         return r.json()["data"]["timings"]
-    except Exception:
+    except Exception as exc:
+        log.warning("aladhan_fetch_failed", error=str(exc))
         return None
 
 
@@ -240,8 +239,6 @@ async def get_esmaul_husna(request: Request, response: Response) -> list[EsmaRes
 
 
 # ─── Hatim Halkaları ──────────────────────────────────────────────────────────
-
-_HALKA_RATE = os.getenv("HALKA_RATE_LIMIT", "20/minute")
 
 
 @app.post(
