@@ -82,7 +82,7 @@ class HatimHalkasiNotifier extends StateNotifier<HatimHalkasiState> {
     }
   }
 
-  Future<void> updateJuz(int juzNum, String durum) async {
+  Future<void> updateJuz(int juzNum, JuzDurum durum) async {
     final code = state.roomCode;
     if (code == null) return;
     // Optimistic update
@@ -91,7 +91,7 @@ class HatimHalkasiNotifier extends StateNotifier<HatimHalkasiState> {
         .toList();
     state = state.copyWith(juzler: optimistic);
     try {
-      await _api.updateHatimJuz(code, juzNum, durum);
+      await _api.updateHatimJuz(code, juzNum, durum.name);
     } on ApiException catch (e) {
       // Rollback ve hata göster
       await refresh();

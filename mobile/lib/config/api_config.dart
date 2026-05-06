@@ -12,12 +12,12 @@ class ApiConfig {
 
   static String nazarEndpoint(int hashInt) => '$baseUrl/api/v1/nazar/$hashInt';
   static String hatimEndpoint(int index) => '$baseUrl/api/v1/hatim/$index';
-  static String packagesEndpoint() => '$baseUrl/api/v1/packages';
+  static String get packagesEndpoint => '$baseUrl/api/v1/packages';
   static String packageDetailEndpoint(String id) => '$baseUrl/api/v1/packages/$id';
-  static String esmaulHusnaEndpoint() => '$baseUrl/api/v1/esmaul-husna';
+  static String get esmaulHusnaEndpoint => '$baseUrl/api/v1/esmaul-husna';
   static String prayerTimesEndpoint(double lat, double lng) =>
       '$baseUrl/api/v1/prayer-times?lat=$lat&lng=$lng';
-  static String hatimHalkasiCreateEndpoint() =>
+  static String get hatimHalkasiCreateEndpoint =>
       '$baseUrl/api/v1/hatim-halkasi/create';
   static String hatimHalkasiRoomEndpoint(String code) =>
       '$baseUrl/api/v1/hatim-halkasi/$code';

@@ -38,6 +38,7 @@ class CameraFrameWidget extends StatelessWidget {
       CurvedAnimation(parent: shutterController, curve: Curves.easeInOut),
     );
 
+    final contentWidth = MediaQuery.of(context).size.width - kScreenPaddingH * 2;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kScreenPaddingH),
       child: Stack(
@@ -51,10 +52,7 @@ class CameraFrameWidget extends StatelessWidget {
           Column(
             children: [
               CustomPaint(
-                size: Size(
-                  MediaQuery.of(context).size.width - kScreenPaddingH * 2,
-                  kMuqarnasH,
-                ),
+                size: Size(contentWidth, kMuqarnasH),
                 painter: const MukarnasPainter(isTop: true),
               ),
               // ── Dairesel kamera alanı ───────────────────────────────────
@@ -114,10 +112,7 @@ class CameraFrameWidget extends StatelessWidget {
                 ),
               ),
               CustomPaint(
-                size: Size(
-                  MediaQuery.of(context).size.width - kScreenPaddingH * 2,
-                  kMuqarnasH,
-                ),
+                size: Size(contentWidth, kMuqarnasH),
                 painter: const MukarnasPainter(isTop: false),
               ),
             ],

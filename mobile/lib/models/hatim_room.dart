@@ -1,15 +1,17 @@
+enum JuzDurum { bos, alindi, okundu }
+
 class JuzItem {
   final int juzNum;
-  final String durum; // 'bos' | 'alindi' | 'okundu'
+  final JuzDurum durum;
 
   const JuzItem({required this.juzNum, required this.durum});
 
   factory JuzItem.fromJson(Map<String, dynamic> json) => JuzItem(
-        juzNum: json['juz_num'] as int,
-        durum: json['durum'] as String,
+        juzNum: (json['juz_num'] as num).toInt(),
+        durum: JuzDurum.values.byName(json['durum'] as String),
       );
 
-  JuzItem copyWith({String? durum}) =>
+  JuzItem copyWith({JuzDurum? durum}) =>
       JuzItem(juzNum: juzNum, durum: durum ?? this.durum);
 }
 

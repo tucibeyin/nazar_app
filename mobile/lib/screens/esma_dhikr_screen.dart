@@ -80,7 +80,7 @@ class _EsmaDhikrScreenState extends State<EsmaDhikrScreen>
           side: BorderSide(color: kGold.withValues(alpha: 0.35), width: 1),
         ),
         content: Text(
-          '${_count ~/ _kZikirHedefi} × 33 tamamlandı',
+          '${_count ~/ _kZikirHedefi} × $_kZikirHedefi tamamlandı',
           textAlign: TextAlign.center,
           style: GoogleFonts.cormorantGaramond(
             fontSize: 15,
@@ -300,7 +300,7 @@ class _EsmaShareCard extends StatelessWidget {
           const SizedBox(height: 10),
           Container(
               height: 1,
-              color: const Color(0xFFC9A84C).withValues(alpha: 0.25)),
+              color: kGold.withValues(alpha: 0.25)),
           const SizedBox(height: 14),
           // Arapça isim
           Text(
@@ -337,7 +337,7 @@ class _EsmaShareCard extends StatelessWidget {
           const SizedBox(height: 12),
           Container(
               height: 1,
-              color: const Color(0xFFC9A84C).withValues(alpha: 0.25)),
+              color: kGold.withValues(alpha: 0.25)),
           const SizedBox(height: 10),
           // Fazilet
           Text(
@@ -353,7 +353,7 @@ class _EsmaShareCard extends StatelessWidget {
           const SizedBox(height: 12),
           Container(
               height: 1,
-              color: const Color(0xFFC9A84C).withValues(alpha: 0.25)),
+              color: kGold.withValues(alpha: 0.25)),
           const SizedBox(height: 8),
           // Marka alt bandı
           const Row(

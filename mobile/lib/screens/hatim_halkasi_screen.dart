@@ -229,8 +229,8 @@ class _RoomView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final completed = state.juzler.where((j) => j.durum == 'okundu').length;
-    final inProgress = state.juzler.where((j) => j.durum == 'alindi').length;
+    final completed = state.juzler.where((j) => j.durum == JuzDurum.okundu).length;
+    final inProgress = state.juzler.where((j) => j.durum == JuzDurum.alindi).length;
 
     return Column(
       children: [
@@ -377,7 +377,7 @@ class _HatimInviteCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Container(height: 1, color: const Color(0xFFC9A84C).withValues(alpha: 0.28)),
+          Container(height: 1, color: kGold.withValues(alpha: 0.28)),
           const SizedBox(height: 12),
           Text(
             'Hatim Halkamıza Katılın!',
@@ -426,7 +426,7 @@ class _HatimInviteCard extends StatelessWidget {
             }).toList(),
           ),
           const SizedBox(height: 12),
-          Container(height: 1, color: const Color(0xFFC9A84C).withValues(alpha: 0.28)),
+          Container(height: 1, color: kGold.withValues(alpha: 0.28)),
           const SizedBox(height: 10),
           Text(
             '30 cüzü birlikte okuduğumuzda Allah kabul etsin.',
@@ -497,7 +497,7 @@ class _JuzCard extends ConsumerWidget {
         _style();
 
     return GestureDetector(
-      onTap: juz.durum != 'okundu' ? () => _onTap(context, ref) : null,
+      onTap: juz.durum != JuzDurum.okundu ? () => _onTap(context, ref) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeOut,
@@ -505,7 +505,7 @@ class _JuzCard extends ConsumerWidget {
           color: bgColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: borderColor, width: 1.2),
-          boxShadow: juz.durum == 'okundu'
+          boxShadow: juz.durum == JuzDurum.okundu
               ? [
                   BoxShadow(
                     color: kGreen.withValues(alpha: 0.12),
@@ -555,41 +555,36 @@ class _JuzCard extends ConsumerWidget {
     );
   }
 
-  (Color, Color, Color, String, IconData?) _style() {
-    switch (juz.durum) {
-      case 'alindi':
-        return (
-          kGold.withValues(alpha: isDark ? 0.18 : 0.12),
-          kGold.withValues(alpha: 0.55),
-          isDark ? kGold : const Color(0xFF8B6914),
-          'Okunuyor',
-          Icons.auto_stories_rounded,
-        );
-      case 'okundu':
-        return (
-          kGreen.withValues(alpha: isDark ? 0.22 : 0.13),
-          kGreen.withValues(alpha: 0.5),
-          kGreen,
-          'Bitti',
-          Icons.check_circle_rounded,
-        );
-      default: // 'bos'
-        return (
-          isDark
-              ? Colors.white.withValues(alpha: 0.04)
-              : Colors.white.withValues(alpha: 0.82),
-          isDark
-              ? Colors.white.withValues(alpha: 0.12)
-              : kGreen.withValues(alpha: 0.15),
-          isDark ? Colors.white38 : kGreen.withValues(alpha: 0.4),
-          'Boş',
-          null,
-        );
-    }
-  }
+  (Color, Color, Color, String, IconData?) _style() => switch (juz.durum) {
+    JuzDurum.alindi => (
+      kGold.withValues(alpha: isDark ? 0.18 : 0.12),
+      kGold.withValues(alpha: 0.55),
+      isDark ? kGold : const Color(0xFF8B6914),
+      'Okunuyor',
+      Icons.auto_stories_rounded,
+    ),
+    JuzDurum.okundu => (
+      kGreen.withValues(alpha: isDark ? 0.22 : 0.13),
+      kGreen.withValues(alpha: 0.5),
+      kGreen,
+      'Bitti',
+      Icons.check_circle_rounded,
+    ),
+    JuzDurum.bos => (
+      isDark
+          ? Colors.white.withValues(alpha: 0.04)
+          : Colors.white.withValues(alpha: 0.82),
+      isDark
+          ? Colors.white.withValues(alpha: 0.12)
+          : kGreen.withValues(alpha: 0.15),
+      isDark ? Colors.white38 : kGreen.withValues(alpha: 0.4),
+      'Boş',
+      null,
+    ),
+  };
 
   void _onTap(BuildContext context, WidgetRef ref) {
-    if (juz.durum == 'bos') {
+    if (juz.durum == JuzDurum.bos) {
       showDialog<void>(
         context: context,
         builder: (_) => AlertDialog(
@@ -606,14 +601,14 @@ class _JuzCard extends ConsumerWidget {
                 Navigator.pop(context);
                 ref
                     .read(hatimHalkasiProvider.notifier)
-                    .updateJuz(juz.juzNum, 'alindi');
+                    .updateJuz(juz.juzNum, JuzDurum.alindi);
               },
               child: const Text('Evet, Al'),
             ),
           ],
         ),
       );
-    } else if (juz.durum == 'alindi') {
+    } else if (juz.durum == JuzDurum.alindi) {
       showModalBottomSheet<void>(
         context: context,
         backgroundColor: isDark ? const Color(0xFF1A2830) : Colors.white,
@@ -651,7 +646,7 @@ class _JuzCard extends ConsumerWidget {
                   Navigator.pop(ctx);
                   ref
                       .read(hatimHalkasiProvider.notifier)
-                      .updateJuz(juz.juzNum, 'okundu');
+                      .updateJuz(juz.juzNum, JuzDurum.okundu);
                 },
               ),
               ListTile(
@@ -662,7 +657,7 @@ class _JuzCard extends ConsumerWidget {
                   Navigator.pop(ctx);
                   ref
                       .read(hatimHalkasiProvider.notifier)
-                      .updateJuz(juz.juzNum, 'bos');
+                      .updateJuz(juz.juzNum, JuzDurum.bos);
                 },
               ),
               const SizedBox(height: 8),

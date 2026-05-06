@@ -7,7 +7,8 @@ const kParchment = Color(0xFFFBF4E6); // levha iç rengi
 const kGreen     = Color(0xFF1B4B3E); // zümrüt yeşili
 const kDarkBg    = Color(0xFF071912); // gece siyahı
 const kGold      = Color(0xFFC9A84C); // Osmanlı altını
-const kIndigo    = Color(0xFF1A3A5C); // lapis lazuli mavi
+const kIndigo     = Color(0xFF1A3A5C); // lapis lazuli mavi
+const kTealAccent = Color(0xFF7EC8E3); // açık mavi — karanlık ekranlar
 
 const kIvory     = Color(0xFFFAF3E0); // fildişi — kart ve levha iç rengi
 const kInk       = Color(0xFF1A0800); // mürekkep siyahı — metafor metin rengi

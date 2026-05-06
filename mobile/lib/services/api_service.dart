@@ -109,7 +109,7 @@ class ApiService {
     try {
       return await _withRetry('fetchPackages', () async {
         final resp = await _client
-            .get(Uri.parse(ApiConfig.packagesEndpoint()), headers: _headers)
+            .get(Uri.parse(ApiConfig.packagesEndpoint), headers: _headers)
             .timeout(kApiTimeout);
         if (resp.statusCode == 200) {
           final prefs = await SharedPreferences.getInstance();
@@ -163,7 +163,7 @@ class ApiService {
 
   Future<List<Esma>> fetchEsmaulHusna() => _withRetry('fetchEsmaulHusna', () async {
         final resp = await _client
-            .get(Uri.parse(ApiConfig.esmaulHusnaEndpoint()), headers: _headers)
+            .get(Uri.parse(ApiConfig.esmaulHusnaEndpoint), headers: _headers)
             .timeout(kApiTimeout);
         if (resp.statusCode == 200) {
           return (jsonDecode(resp.body) as List<dynamic>)
@@ -195,7 +195,7 @@ class ApiService {
   Future<HatimRoom> createHatimRoom() => _wrapNetworkErrors(() async {
         final resp = await _client
             .post(
-              Uri.parse(ApiConfig.hatimHalkasiCreateEndpoint()),
+              Uri.parse(ApiConfig.hatimHalkasiCreateEndpoint),
               headers: {..._headers, 'Content-Type': 'application/json'},
             )
             .timeout(kApiTimeout);

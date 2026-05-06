@@ -14,6 +14,8 @@ import '../providers/notif_settings_provider.dart';
 import '../providers/vakitler_provider.dart';
 import '../services/notification_service.dart';
 
+const _kSensorPeriod = SensorInterval.uiInterval;
+
 class IbadetScreen extends ConsumerStatefulWidget {
   const IbadetScreen({super.key});
 
@@ -56,11 +58,11 @@ class _IbadetScreenState extends ConsumerState<IbadetScreen> {
   }
 
   void _startCompass() {
-    _accSub = accelerometerEventStream(samplingPeriod: SensorInterval.uiInterval)
+    _accSub = accelerometerEventStream(samplingPeriod: _kSensorPeriod)
         .listen((e) { _acc = e; _tryInitHeading(); });
-    _magSub = magnetometerEventStream(samplingPeriod: SensorInterval.uiInterval)
+    _magSub = magnetometerEventStream(samplingPeriod: _kSensorPeriod)
         .listen((e) { _mag = e; _tryInitHeading(); });
-    _gyroSub = gyroscopeEventStream(samplingPeriod: SensorInterval.uiInterval)
+    _gyroSub = gyroscopeEventStream(samplingPeriod: _kSensorPeriod)
         .listen(_onGyro);
   }
 
