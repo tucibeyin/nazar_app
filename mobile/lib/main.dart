@@ -19,6 +19,8 @@ import 'screens/ilkyardim_screen.dart';
 import 'screens/ibadet_screen.dart';
 import 'screens/kaza_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/tesbihat_screen.dart';
+import 'screens/namaz_kilavuzu_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -89,6 +91,14 @@ class _NazarAppState extends ConsumerState<NazarApp> {
         GoRoute(
           path: '/backup',
           builder: (_, __) => const BackupScreen(),
+        ),
+        GoRoute(
+          path: '/tesbihat',
+          builder: (_, __) => const TesbihatScreen(),
+        ),
+        GoRoute(
+          path: '/namaz-kilavuzu',
+          builder: (_, __) => const NamazKilavuzuScreen(),
         ),
         GoRoute(
           path: '/home',

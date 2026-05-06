@@ -574,6 +574,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               },
             ),
             ListTile(
+              leading: Icon(Icons.self_improvement_rounded,
+                  color: kGold.withValues(alpha: 0.75)),
+              title: Text(
+                'Namaz Kılavuzu',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+              subtitle: Text(
+                'Adım adım namaz rehberi',
+                style: TextStyle(fontSize: 12, color: subColor),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.push('/namaz-kilavuzu');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.radio_button_checked_rounded,
+                  color: kGold.withValues(alpha: 0.75)),
+              title: Text(
+                'Tesbihat',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+              subtitle: Text(
+                '33 + 33 + 34 zikir sayacı',
+                style: TextStyle(fontSize: 12, color: subColor),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.push('/tesbihat');
+              },
+            ),
+            ListTile(
               leading: Icon(Icons.checklist_rounded, color: const Color(0xFF7EC8E3).withValues(alpha: 0.8)),
               title: Text(
                 'Kaza Çetelesi',
