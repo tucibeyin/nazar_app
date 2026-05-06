@@ -22,6 +22,7 @@ class _NamazKilavuzuScreenState extends State<NamazKilavuzuScreen>
   int _adimIndex = 0;
   bool _ttsOynuyor = false;
   bool _ttsHazir = false;
+  bool _ttsArapca = false;
 
   late final FlutterTts _tts;
   late final AnimationController _slideCtrl;
@@ -44,8 +45,25 @@ class _NamazKilavuzuScreenState extends State<NamazKilavuzuScreen>
 
   Future<void> _initTts() async {
     _tts = FlutterTts();
-    await _tts.setLanguage('tr-TR');
-    await _tts.setSpeechRate(0.42);
+
+    // Cihazda Arapça TTS sesi var mı kontrol et
+    try {
+      final langs = await _tts.getLanguages as List<dynamic>?;
+      final arAvailable = langs?.any(
+            (l) => l.toString().toLowerCase().startsWith('ar'),
+          ) ??
+          false;
+      if (arAvailable) {
+        await _tts.setLanguage('ar-SA');
+        _ttsArapca = true;
+      } else {
+        await _tts.setLanguage('tr-TR');
+      }
+    } catch (_) {
+      await _tts.setLanguage('tr-TR');
+    }
+
+    await _tts.setSpeechRate(_ttsArapca ? 0.46 : 0.42);
     await _tts.setPitch(1.0);
     await _tts.setVolume(1.0);
 
@@ -119,12 +137,11 @@ class _NamazKilavuzuScreenState extends State<NamazKilavuzuScreen>
 
   void _autoOku() {
     final step = _adimlar[_adimIndex];
-    if (step.adim != null && _ttsHazir) {
-      final text = step.adim!.tekrar > 1
-          ? '${step.adim!.okunus} (${step.adim!.tekrar} kez)'
-          : step.adim!.okunus;
-      _tts.speak(text);
-    }
+    if (step.adim == null || !_ttsHazir) return;
+    final adim = step.adim!;
+    // Arapça TTS varsa Arapça metni oku, yoksa Türkçe okunuşu
+    final text = (_ttsArapca && adim.arapca != null) ? adim.arapca! : adim.okunus;
+    _tts.speak(text);
   }
 
   Future<void> _toggleTts() async {
