@@ -4,6 +4,9 @@ import os
 import sys
 from contextlib import asynccontextmanager
 
+import asyncio
+from datetime import date as _date
+
 import httpx
 import structlog
 from dotenv import load_dotenv
@@ -194,16 +197,6 @@ async def _fetch_aladhan(lat: float, lng: float) -> dict | None:
         return None
 
 
-def _local_timings(lat: float, lng: float) -> dict:
-    """Yerel astronomik hesaplama (aladhan erişilemezse kullanılır)."""
-    import asyncio
-    from datetime import date as _date
-    from prayer_calc import prayer_times_local
-
-    loop = asyncio.get_event_loop()
-    return loop.run_in_executor(None, prayer_times_local, lat, lng, _date.today())
-
-
 @app.get("/api/v1/prayer-times", response_model=PrayerTimesResponse, tags=["prayer-times"])
 @limiter.limit(_PRAYER_RATE)
 async def get_prayer_times(
@@ -212,10 +205,6 @@ async def get_prayer_times(
     lat: float = Query(..., ge=-90, le=90),
     lng: float = Query(..., ge=-180, le=180),
 ) -> PrayerTimesResponse:
-    from datetime import date as _date
-    import asyncio
-    from prayer_calc import prayer_times_local
-
     # ── Birincil kaynak: aladhan.com (Diyanet method 13) ──────────────────────
     t = await _fetch_aladhan(lat, lng)
 
@@ -223,7 +212,8 @@ async def get_prayer_times(
         # ── Yedek: yerel astronomik hesaplama ─────────────────────────────────
         log.warning("aladhan_unreachable_fallback", lat=lat, lng=lng)
         try:
-            t = await asyncio.get_event_loop().run_in_executor(
+            from prayer_calc import prayer_times_local  # noqa: PLC0415
+            t = await asyncio.get_running_loop().run_in_executor(
                 None, prayer_times_local, lat, lng, _date.today()
             )
         except Exception as exc:

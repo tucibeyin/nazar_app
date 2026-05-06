@@ -33,7 +33,7 @@ MOCK_AYETLER = [
 ]
 
 
-def _make_client(api_key: str = "", ayetler: list = None) -> TestClient:
+def _make_client(api_key: str = "", ayetler: list | None = None) -> TestClient:
     """Test istemcisi — gerçek quran_data.json yerine mock veri kullanır."""
     data = ayetler if ayetler is not None else MOCK_AYETLER
     with (

@@ -1,6 +1,6 @@
 """Sosyal hatim halkaları — SQLite veritabanı katmanı."""
 
-import random
+import secrets
 import string
 from pathlib import Path
 
@@ -36,7 +36,7 @@ async def init_db() -> None:
 
 
 def _gen_code() -> str:
-    return "".join(random.choices(_CHARSET, k=6))
+    return "".join(secrets.choice(_CHARSET) for _ in range(6))
 
 
 async def create_room() -> dict:
